@@ -1,0 +1,28 @@
+import type { Metadata } from "next";
+import PageShell from "@/components/PageShell";
+import PostGrid from "@/components/PostGrid";
+import { getGuides } from "@/lib/data";
+
+export const revalidate = 60;
+
+export const metadata: Metadata = {
+  title: "Buying Guides — AffiliBlog",
+  description: "Explainers and buying advice to help you choose well.",
+};
+
+export default async function GuidesPage() {
+  const posts = await getGuides();
+
+  return (
+    <PageShell
+      title="Buying Guides"
+      eyebrow="Learn"
+      intro="Explainers and advice on how to choose — the background reading behind our picks."
+    >
+      <PostGrid
+        posts={posts}
+        empty="No guides published yet — check back soon."
+      />
+    </PageShell>
+  );
+}

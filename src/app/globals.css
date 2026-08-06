@@ -1,26 +1,344 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+@theme {
+  /* Warm editorial palette sampled directly from the design mockups */
+  --color-cream: #faf7f2;
+  --color-paper: #fdfbf8;
+  --color-sand: #f4eee5;
+  --color-band: #ede5d8;
+  --color-line: #e7dfd3;
+  --color-line-soft: #f0e9df;
+  --color-ink: #14110e;
+  --color-body: #4f463d;
+  --color-muted: #8d8378;
+  --color-bronze: #a67c45;
+  --color-bronze-deep: #86612f;
+  --color-leaf: #2e7d4f;
+  --color-olive: #3a3d2f;
+  --color-star: #e0a12b;
+
+  --font-serif: var(--font-playfair), "Iowan Old Style", Georgia, serif;
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-script: "Dancing Script", cursive;
+
+  /* Layout dimensions — `--container-*` feeds max-w-*, `--spacing-*` feeds h-*  */
+  --container-page: 1400px;
+  --spacing-header-mobile: 4rem;
+  --spacing-header-desktop: 4.5rem;
+
+  /* Type scale — component-specific sizes */
+  --text-logo-mobile: 1.625rem;
+  --text-logo-desktop: 1.75rem;
+  --text-nav: 0.84375rem;
+  --text-tiny: 0.6875rem;
+
+  /* Shadows */
+  --shadow-dropdown: 0 12px 40px -12px rgba(20, 17, 14, 0.18);
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    /* keeps #anchors clear of the sticky header */
+    scroll-padding-top: 8.5rem;
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    /* Custom scrollbar in the site palette. Firefox / standard. */
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-line) var(--color-cream);
+  }
+
+  /* WebKit/Blink equivalent — scoped to the page so `.hide-scrollbar`
+     (the comparison table rail) keeps overriding it. */
+  html::-webkit-scrollbar {
+    width: 11px;
+  }
+
+  html::-webkit-scrollbar-track {
+    background-color: var(--color-cream);
+    border-left: 1px solid var(--color-line-soft);
+  }
+
+  html::-webkit-scrollbar-thumb {
+    background-color: #d9cebd;
+    border: 3px solid var(--color-cream);
+    border-radius: 999px;
+  }
+
+  html::-webkit-scrollbar-thumb:hover {
+    background-color: var(--color-bronze);
+  }
+
+  body {
+    background-color: var(--color-cream);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-serif);
+    font-weight: 500;
+    letter-spacing: -0.02em;
+  }
+
+  /* Playfair's high contrast only reads at display sizes from 600 up */
+  h1 {
+    font-weight: 600;
+    letter-spacing: -0.035em;
+  }
+
+  ::selection {
+    background-color: #e8d9c2;
+  }
+
+  /* Visible focus ring on every interactive element, in the bronze accent */
+  :where(a, button, input, summary, [tabindex]):focus-visible {
+    outline: 2px solid var(--color-bronze);
+    outline-offset: 2px;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@layer components {
+  /* Small caps label used above headlines and on category chips */
+  .eyebrow {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--color-bronze);
+  }
+
+  /* Boxed variant of the eyebrow — the "ELECTRONICS" chip in the post hero */
+  .eyebrow-chip {
+    display: inline-block;
+    border: 1px solid var(--color-line);
+    background-color: var(--color-paper);
+    padding: 0.3125rem 0.75rem;
+    font-size: 0.625rem;
+    font-weight: 600;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--color-ink);
+  }
+
+  /* Thin rule + serif heading that opens every home section */
+  .section-title {
+    font-size: 1.5rem;
+    line-height: 1.2;
+  }
+
+  /* One word of a headline in Playfair italic — the display face's best angle.
+     Weight drops back to 400 because the italic already carries the emphasis. */
+  .headline-accent {
+    font-style: italic;
+    font-weight: 400;
+  }
+
+  /* Killer subscribe button — ink base, bronze wipe on hover, arrow slides out */
+  .btn-subscribe {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    isolation: isolate;
+    overflow: hidden;
+    background-color: var(--color-ink);
+    color: var(--color-cream);
+    font-size: 0.8125rem;
+    font-weight: 500;
+    letter-spacing: 0.01em;
+    padding: 0.625rem 1.5rem;
+    box-shadow: 0 1px 0 0 rgba(20, 17, 14, 0.9);
+    transition:
+      box-shadow 0.35s ease,
+      transform 0.35s ease;
+  }
+
+  /* the bronze wipe, revealed left-to-right */
+  .btn-subscribe::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background: linear-gradient(
+      100deg,
+      var(--color-bronze-deep),
+      var(--color-bronze)
+    );
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 0.4s cubic-bezier(0.65, 0, 0.35, 1);
+  }
+
+  /* the sheen that sweeps across once on hover */
+  .btn-subscribe::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: -60%;
+    z-index: -1;
+    width: 40%;
+    background: linear-gradient(
+      100deg,
+      transparent,
+      rgba(255, 255, 255, 0.28),
+      transparent
+    );
+    transform: skewX(-18deg);
+    transition: left 0.55s ease;
+  }
+
+  .btn-subscribe:hover,
+  .btn-subscribe:focus-visible {
+    transform: translateY(-1px);
+    box-shadow: 0 10px 22px -10px rgba(134, 97, 47, 0.75);
+  }
+
+  .btn-subscribe:hover::before,
+  .btn-subscribe:focus-visible::before {
+    transform: scaleX(1);
+  }
+
+  .btn-subscribe:hover::after,
+  .btn-subscribe:focus-visible::after {
+    left: 130%;
+  }
+
+  .btn-subscribe:active {
+    transform: translateY(0);
+  }
+
+  /* the arrow inside the button nudges right with the wipe */
+  .btn-subscribe svg {
+    transition: transform 0.4s cubic-bezier(0.65, 0, 0.35, 1);
+  }
+
+  .btn-subscribe:hover svg,
+  .btn-subscribe:focus-visible svg {
+    transform: translateX(3px);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .btn-subscribe,
+    .btn-subscribe::before,
+    .btn-subscribe::after,
+    .btn-subscribe svg {
+      transition-duration: 0.01ms;
+    }
+    .btn-subscribe:hover,
+    .btn-subscribe:focus-visible {
+      transform: none;
+    }
+  }
+
+  .hide-scrollbar {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Static editorial copy — legal pages, about, contact. Same measure and
+     rhythm as .post-body but with no drop cap, since these aren't articles. */
+  .prose-page h2 {
+    font-size: 1.25rem;
+    line-height: 1.25;
+    margin-top: 2.5rem;
+  }
+  .prose-page h3 {
+    font-size: 1rem;
+    font-family: var(--font-sans);
+    font-weight: 600;
+    margin-top: 1.75rem;
+  }
+  .prose-page p {
+    font-size: 15.5px;
+    line-height: 1.75;
+    color: var(--color-body);
+    margin-top: 1rem;
+  }
+  .prose-page ul {
+    margin-top: 1rem;
+    padding-left: 1.25rem;
+    list-style: disc;
+    font-size: 15.5px;
+    line-height: 1.75;
+    color: var(--color-body);
+  }
+  .prose-page li {
+    margin-top: 0.5rem;
+  }
+  .prose-page a {
+    color: var(--color-bronze);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+  .prose-page strong {
+    color: var(--color-ink);
+    font-weight: 600;
+  }
+
+  /* Agent-supplied article body (HTML) — prose typography with a drop cap on
+     the first paragraph. No typography plugin in this project, so style here. */
+  .post-body p {
+    font-size: 15.5px;
+    line-height: 1.75;
+    color: var(--color-body);
+    margin-top: 1.25rem;
+  }
+  .post-body p:first-child {
+    margin-top: 0;
+  }
+  .post-body p:first-child::first-letter {
+    float: left;
+    font-family: var(--font-serif);
+    font-size: 3.6rem;
+    line-height: 0.82;
+    margin-right: 0.625rem;
+    margin-top: 0.375rem;
+    color: var(--color-ink);
+  }
+  .post-body h2 {
+    font-size: 1.375rem;
+    line-height: 1.2;
+    margin-top: 2.5rem;
+    scroll-margin-top: 8.5rem;
+  }
+  @media (min-width: 1024px) {
+    .post-body h2 {
+      font-size: 1.625rem;
+    }
+  }
+  .post-body section {
+    scroll-margin-top: 8.5rem;
+  }
+  .post-body a {
+    color: var(--color-bronze);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+  .post-body ul,
+  .post-body ol {
+    margin-top: 1.25rem;
+    padding-left: 1.25rem;
+    color: var(--color-body);
+    font-size: 15.5px;
+    line-height: 1.75;
+  }
+  .post-body ul {
+    list-style: disc;
+  }
+  .post-body ol {
+    list-style: decimal;
+  }
+  .post-body li {
+    margin-top: 0.5rem;
+  }
 }
