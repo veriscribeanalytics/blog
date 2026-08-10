@@ -11,6 +11,7 @@ import {
   slugify,
 } from "@/lib/format";
 import type { PostWrite } from "@/lib/schema";
+import { sanitizePostBody } from "@/lib/sanitize";
 import type { Category, Deal, Post, PostDetail, Product, TocEntry, Faq } from "@/lib/types";
 
 /* ----------------------------- row shapes ------------------------------ */
@@ -93,6 +94,10 @@ function mapProduct(r: ProductRow): Product {
     pros: Array.isArray(r.pros) ? r.pros : [],
     why: r.why_picked ?? "",
     updated: formatUpdated(r.updated_at),
+    // paise -> rupees for schema.org; the display strings above stay untouched.
+    priceValue: r.price_inr == null ? null : r.price_inr / 100,
+    mrpValue: r.mrp_inr == null ? null : r.mrp_inr / 100,
+    reviewCount: r.review_count ?? null,
   };
 }
 
@@ -239,7 +244,9 @@ export async function getPostBySlug(slug: string): Promise<PostDetail | null> { 
     readTime: formatReadTime(post.read_time_minutes),
     readTimeMinutes: post.read_time_minutes ?? 0,
     heroImage: post.hero_image_url ?? "",
-    body: post.body ?? "",
+    // Sanitized on write too, but rows predating that (or seeded directly via
+    // SQL) still flow through here — the render path must not trust the column.
+    body: sanitizePostBody(post.body ?? ""),
     tableOfContents: Array.isArray(post.table_of_contents)
       ? post.table_of_contents
       : [],
@@ -306,6 +313,36 @@ export async function getLatestPosts(limit = 4): Promise<Post[]> {
     [limit],
   );
   return rows.map(mapPost);
+}
+
+/**
+ * Slug + timestamp for every published post — feeds `<lastmod>` in the sitemap.
+ * Deliberately narrow: the sitemap needs no body, products or joins.
+ */
+export async function listPostSitemapEntries(): Promise<
+  { slug: string; updatedAt: string | null }[]
+> {
+  const rows = await query<{ slug: string; updated_at: string | null }>(
+    `SELECT slug, COALESCE(updated_at, published_at) AS updated_at
+       FROM posts
+      WHERE is_published = TRUE
+      ORDER BY COALESCE(updated_at, published_at) DESC NULLS LAST`,
+  );
+  return rows.map((r) => ({ slug: r.slug, updatedAt: r.updated_at }));
+}
+
+/** Category slugs that actually have published posts — empty ones are noise. */
+export async function listCategorySitemapEntries(): Promise<
+  { slug: string; updatedAt: string | null }[]
+> {
+  const rows = await query<{ slug: string; updated_at: string | null }>(
+    `SELECT c.slug, MAX(COALESCE(p.updated_at, p.published_at)) AS updated_at
+       FROM categories c
+       JOIN posts p ON p.category_id = c.id AND p.is_published = TRUE
+      GROUP BY c.slug
+      ORDER BY c.slug ASC`,
+  );
+  return rows.map((r) => ({ slug: r.slug, updatedAt: r.updated_at }));
 }
 
 /* ------------------------------- writes --------------------------------- */

@@ -2,8 +2,9 @@ import type { Metadata } from "next";
 import PageShell from "@/components/PageShell";
 
 export const metadata: Metadata = {
-  title: "Privacy Policy — AffiliBlog",
+  title: "Privacy Policy",
   description: "How we collect, use, and protect your information.",
+  alternates: { canonical: "/privacy" },
 };
 
 export default function PrivacyPage() {

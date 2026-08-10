@@ -2,8 +2,9 @@ import type { Metadata } from "next";
 import PageShell from "@/components/PageShell";
 
 export const metadata: Metadata = {
-  title: "Affiliate Disclosure — AffiliBlog",
+  title: "Affiliate Disclosure",
   description: "How we earn from product recommendations and affiliate links.",
+  alternates: { canonical: "/disclosure" },
 };
 
 export default function DisclosurePage() {

@@ -52,6 +52,9 @@ export default function SubscribeForm({
       } else if (res.status === 409) {
         setStatus("duplicate");
         setMsg("You're already on the list.");
+      } else if (res.status === 429) {
+        setStatus("error");
+        setMsg("Too many attempts. Please try again later.");
       } else {
         const data = (await res.json().catch(() => null)) as
           | { error?: string }

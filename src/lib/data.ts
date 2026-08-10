@@ -24,6 +24,8 @@ import {
   listPublishedPosts as dbListPublishedPosts,
   listPostsByKind as dbListPostsByKind,
   listDeals as dbListDeals,
+  listPostSitemapEntries as dbListPostSitemapEntries,
+  listCategorySitemapEntries as dbListCategorySitemapEntries,
 } from "@/lib/queries";
 
 // Re-export static config + types so server components can keep importing
@@ -73,4 +75,14 @@ export const getGuides = cache(async (limit = 60): Promise<Post[]> =>
 /** Discounted products for /deals. */
 export const getDeals = cache(async (limit = 24): Promise<Deal[]> =>
   dbListDeals(limit),
+);
+
+/** Slug + last-updated for every published post — feeds sitemap `<lastmod>`. */
+export const getPostSitemapEntries = cache(async () =>
+  dbListPostSitemapEntries(),
+);
+
+/** Category slugs with published posts — feeds sitemap category URLs. */
+export const getCategorySitemapEntries = cache(async () =>
+  dbListCategorySitemapEntries(),
 );

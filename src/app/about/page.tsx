@@ -3,8 +3,9 @@ import Link from "next/link";
 import PageShell from "@/components/PageShell";
 
 export const metadata: Metadata = {
-  title: "About — AffiliBlog",
+  title: "About",
   description: "Who we are and how we approach product reviews.",
+  alternates: { canonical: "/about" },
 };
 
 export default function AboutPage() {

@@ -36,6 +36,14 @@ export type Product = {
   pros: string[];
   why: string;
   updated: string; // display: "Updated 2 hours ago"
+  /**
+   * Raw values kept alongside the display strings for structured data —
+   * schema.org needs machine-readable numbers ("2499"), not "₹2,499".
+   * Rupees, not paise. Null when the DB column was null.
+   */
+  priceValue: number | null;
+  mrpValue: number | null;
+  reviewCount: number | null;
 };
 
 export type TocEntry = { num: string; label: string; id: string };

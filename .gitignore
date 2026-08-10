@@ -43,3 +43,9 @@ next-env.d.ts
 
 # VS Code extensions
 *.vsix
+
+# one-off local maintenance scripts (they hardcode local DB credentials)
+/fix_*.js
+
+# local scratch output (generated audio, exports)
+/output/

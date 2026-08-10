@@ -6,8 +6,9 @@ import { getReviews } from "@/lib/data";
 export const revalidate = 60;
 
 export const metadata: Metadata = {
-  title: "Reviews — AffiliBlog",
+  title: "Reviews",
   description: "Hands-on product reviews with ranked picks for every budget.",
+  alternates: { canonical: "/reviews" },
 };
 
 export default async function ReviewsPage() {
