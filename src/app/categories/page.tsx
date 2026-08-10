@@ -7,8 +7,9 @@ import { getCategories } from "@/lib/data";
 export const revalidate = 60;
 
 export const metadata: Metadata = {
-  title: "All Categories — AffiliBlog",
+  title: "All Categories",
   description: "Browse reviews and guides by category.",
+  alternates: { canonical: "/categories" },
 };
 
 export default async function CategoriesPage() {

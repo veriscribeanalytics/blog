@@ -2,8 +2,9 @@ import type { Metadata } from "next";
 import PageShell from "@/components/PageShell";
 
 export const metadata: Metadata = {
-  title: "Editorial Policy — AffiliBlog",
+  title: "Editorial Policy",
   description: "How we test, rank, and recommend the products we write about.",
+  alternates: { canonical: "/editorial" },
 };
 
 export default function EditorialPage() {

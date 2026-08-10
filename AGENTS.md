@@ -9,28 +9,63 @@ This version has breaking changes — APIs, conventions, and file structure may 
 An affiliate review blog. Warm editorial look: cream paper, serif headlines, bronze accents.
 Backend guidance lives in `BACKEND.md`.
 
-## Status: design prototype
+## Status: DB-backed, pre-launch
 
-The UI is built and matches the approved mockups. **All content is fake.** Nothing is
-wired to a database, and no form actually submits anywhere.
+The UI matches the approved mockups and is wired end to end. Content comes from
+Postgres via `src/lib/queries.ts`, exposed to server components through the async
+getters in `src/lib/data.ts`. The Hermes agent writes posts over the REST API.
+`npm run build` passes; 18 routes exist and every header/footer link resolves.
 
-Known placeholders, to be replaced when the backend lands:
+Real and working: all routes (`/`, `/blog`, `/blog/[slug]`, `/category/[slug]`,
+`/deals`, `/reviews`, `/guides`, `/categories`, `/about`, `/contact`, and the legal
+pages) · newsletter signup (`SubscribeForm` → `POST /api/newsletter`, rate-limited)
+· affiliate links (real `amazonUrl`s, `rel="nofollow sponsored noopener"`) · hero
+carousel (`HeroSection.tsx`, backed by the trending rail).
 
-- **Images** — every image is a hotlinked Unsplash CDN URL built by the `img()` helper
-  at the top of `src/lib/data.ts`. None are stored in this repo. They are stand-ins for
-  art direction only; do not ship them to production. Unsplash can rate-limit or pull
-  any of these at any time.
-- **Content** — the exported arrays in `src/lib/data.ts` are hardcoded.
-- **Newsletter form** (`Newsletter.tsx`) — no submit handler.
-- **Search button** (`Header.tsx`) — renders, does nothing.
-- **"View on Amazon" links** — all `href="#"`.
-- **Share buttons** — all `href="#"`.
-- **Carousel** (`HeroSection.tsx`) — the `01 / 02` counter increments but there is only
-  one slide; it does not change the image.
-- **Routes** — only `/` and `/blog/[slug]` exist. Header/footer link to `/deals`,
-  `/reviews`, `/guides`, `/about`, `/contact`, `/category/[slug]`, `/blog`, and legal
-  pages that are all **404s** today.
-- `/blog/[slug]` ignores its `slug` and renders the same hardcoded post for any value.
+Still outstanding before launch:
+
+- **`NEXT_PUBLIC_SITE_URL` must be set in the deploy environment.** Until it is,
+  `robots.ts` serves `Disallow: /` and refuses to expose the sitemap — deliberate,
+  so an unconfigured deploy can't get indexed. Canonicals and OG URLs need it too.
+- **Images** — seed rows still point at hotlinked Unsplash CDN URLs. Fine for
+  art direction, not for production; Unsplash can rate-limit or pull them.
+  Agent-written posts supply their own (allowlist in `next.config.ts`).
+- **No OG image** — `public/` still holds the default Next.js SVGs. Social shares
+  fall back to no image. Add one and reference it in `layout.tsx`'s `openGraph`.
+- **Newsletter** stores to `newsletter_subscribers` only; the Resend forward is
+  stubbed pending `RESEND_API_KEY`.
+- **Share buttons** — still `href="#"`.
+- **`npm audit`** reports 4 high-severity advisories in Next's own dependency
+  chain (postcss / sharp / nanoid). Clearing them needs `next@16.3.0`, outside the
+  pinned range — a deliberate upgrade, not a drive-by `--force`.
+
+## SEO
+
+Treat this as load-bearing — it's an affiliate site, organic search is the point.
+
+- `src/lib/config.ts` owns `siteUrl` / `absoluteUrl()`. Build every absolute URL
+  from those, never hardcode the origin.
+- `layout.tsx` sets `metadataBase` and a title template (`%s — AffiliBlog`), so
+  **page metadata must set only its own title** — no manual ` — AffiliBlog` suffix.
+- Every page sets `alternates.canonical`. New routes must too.
+- `src/app/sitemap.ts` and `robots.ts` are generated from the DB; new indexable
+  route groups need adding to `STATIC_ROUTES` in `sitemap.ts`.
+- `src/lib/jsonld.ts` emits Article + BreadcrumbList + ItemList/Product + FAQPage
+  for posts. **Only describe what's visible on the page** — inventing an offer or
+  rating that a reader can't see violates Google's structured-data policy.
+- `Product` carries raw `priceValue` / `mrpValue` / `reviewCount` alongside the
+  display strings; JSON-LD uses the raw numbers, never the formatted `"₹2,499"`.
+
+## Security
+
+- **`post.body` is agent-supplied HTML rendered with `dangerouslySetInnerHTML`.**
+  It is sanitized twice — on write (`schema.ts` transform) and on read
+  (`getPostBySlug`) — via the allowlist in `src/lib/sanitize.ts`. Keep both. If a
+  post needs a new tag, widen the allowlist; never bypass the sanitizer.
+- Writes are authenticated with a single bearer key (`src/lib/auth.ts`) and fail
+  closed when `AGENT_API_KEY` is unset.
+- `/api/newsletter` is the only unauthenticated write; it's IP rate-limited
+  in-process (see the caveats in `src/lib/rateLimit.ts`).
 
 ## Stack
 
@@ -44,23 +79,47 @@ Tailwind v4 has **no `tailwind.config.js`** — the theme is declared with `@the
 ```
 src/
   app/
-    layout.tsx              root: fonts + <body>
+    layout.tsx              root: fonts, metadataBase/OG, site JSON-LD
     page.tsx                home
-    globals.css             @theme tokens, base styles, .eyebrow
-    blog/[slug]/page.tsx    post page (async params)
+    globals.css             @theme tokens, base styles, .eyebrow, .post-body
+    sitemap.ts              DB-driven sitemap.xml
+    robots.ts               robots.txt (Disallow: / until SITE_URL is set)
+    blog/page.tsx           all articles
+    blog/[slug]/page.tsx    post page (async params) + post JSON-LD
+    category/[slug]/        per-category listing
+    categories|deals|reviews|guides|about|contact/
+    disclosure|editorial|privacy|terms/
+    api/posts/route.ts      GET list · POST create (agent-only)
+    api/posts/[slug]/       GET one · PUT update · DELETE soft-delete
+    api/categories/route.ts
+    api/newsletter/route.ts POST subscribe (rate-limited)
   components/
     Header.tsx              sticky nav + mobile drawer (exports Logo)
     Footer.tsx
     Newsletter.tsx          "Stay Updated" band
-    HeroSection.tsx         hero + Trending Now rail
+    SubscribeForm.tsx       the only form that posts anywhere
+    HeroSection.tsx         hero carousel + Trending Now rail
     CategoriesSection.tsx
-    LatestPosts.tsx
+    LatestPosts.tsx  PostGrid.tsx  PageShell.tsx
     PostSidebar.tsx         TOC scroll-spy + deal card + related
-    ProductCard.tsx
-    StarRating.tsx
+    ProductCard.tsx  StarRating.tsx  TrustStrip.tsx
+    AnnouncementBar.tsx  AccentTitle.tsx  Manifesto.tsx
     icons.tsx               inline SVGs, currentColor
   lib/
-    data.ts                 ALL demo content + types
+    data.ts                 the seam server components import
+    queries.ts              all SQL
+    db.ts                   lazy pg pool (server-only)
+    config.ts               DB-free static config, siteUrl/absoluteUrl
+    types.ts                display types
+    schema.ts               zod validation for agent writes
+    sanitize.ts             post-body HTML allowlist
+    jsonld.ts               schema.org builders
+    rateLimit.ts            in-process IP limiter
+    format.ts               paise/date/count -> display strings
+    auth.ts  env.ts  apiError.ts  revalidate.ts
+db/
+  migrations/0001_init.sql
+  seed.sql
 ```
 
 ## Design tokens
@@ -87,15 +146,16 @@ Corners are square. There is no border radius anywhere except avatars and dots.
 
 ## Conventions
 
-- **Server Components by default.** Only three files carry `"use client"`, each for a
+- **Server Components by default.** Only four files carry `"use client"`, each for a
   real reason: `Header` (drawer state), `HeroSection` (carousel), `PostSidebar`
-  (IntersectionObserver). Don't add the directive unless you need state, effects, or
-  event handlers.
+  (IntersectionObserver), `SubscribeForm` (form state). Don't add the directive unless
+  you need state, effects, or event handlers.
 - **Breakpoints** map to the three mockups: base = mobile 375, `lg:` = laptop 1024,
   `max-w-[1400px]` caps desktop. Mobile-first — write the small layout, then add `lg:`.
 - **Content flows from `src/lib/data.ts`.** Components read the exported types
-  (`Post`, `Category`, `Product`) and never hardcode strings. Keep it that way — when
-  the API arrives, only this file's internals change.
+  (`Post`, `Category`, `Product`) and never hardcode strings. Server components use the
+  async getters; **client components must import from `@/lib/config` and `@/lib/types`
+  instead** — `data.ts` pulls the Node-only `pg` chain.
 - **Icons** are inline SVG in `icons.tsx` using `currentColor`. No icon library.
 - Every `next/image` needs `sizes`. Remote hosts must be allowlisted in
   `next.config.ts` → `images.remotePatterns`.
@@ -108,12 +168,21 @@ breadcrumbs use `<ol>` + `aria-label`, icon-only buttons have `aria-label`, the 
 
 ## Verify before claiming done
 
-`npx tsc --noEmit` was the only check run on the initial build. It does **not** catch
-layout regressions. Run the dev server and look at all three widths before saying a
+`npx tsc --noEmit` and `npm run build` both pass — keep them that way. Neither catches
+layout regressions: run the dev server and look at all three widths before saying a
 visual change works.
 
 ```bash
 npm run dev     # http://localhost:3000
-npm run build   # not yet run on this project — expect to fix things
+npm run build
 npm run lint
+```
+
+For SEO changes, also confirm the generated output rather than assuming:
+
+```bash
+curl -s localhost:3000/robots.txt
+curl -s localhost:3000/sitemap.xml | head -20
+# JSON-LD on a post — paste into search.google.com/test/rich-results
+curl -s localhost:3000/blog/<slug> | grep -o 'application/ld+json'
 ```

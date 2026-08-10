@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { sanitizePostBody } from "@/lib/sanitize";
 
 /**
  * Validation for the Hermes agent's POST/PUT payload.
@@ -47,7 +48,16 @@ export const postWriteSchema = z.object({
   publishedAt: z.string().datetime(),
   heroImageUrl: z.string().url(),
   readTimeMinutes: z.number().int().positive(),
-  body: z.string().min(1),
+  // Sanitized before it reaches the DB — the post page renders this as raw HTML.
+  // Re-checked non-empty afterwards so a body that was *entirely* disallowed
+  // markup is a 400 the agent can act on, not a silently blank article.
+  body: z
+    .string()
+    .min(1)
+    .transform(sanitizePostBody)
+    .refine((v) => v.trim().length > 0, {
+      message: "body contained no allowed HTML after sanitization",
+    }),
   tableOfContents: z.array(tocEntrySchema),
   inThisArticle: z.array(z.string()),
   faqs: z.array(faqSchema).optional(),

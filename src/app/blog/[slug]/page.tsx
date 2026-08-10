@@ -11,6 +11,7 @@ import ProductCard from "@/components/ProductCard";
 import TrustStrip from "@/components/TrustStrip";
 import { ChevronRight, Swash } from "@/components/icons";
 import { getCategories, getPostBySlug } from "@/lib/data";
+import { jsonLdScript, postJsonLd } from "@/lib/jsonld";
 
 export const revalidate = 60;
 
@@ -23,10 +24,30 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { slug } = await params;
   const post = await getPostBySlug(slug);
-  if (!post) return { title: "Not found — AffiliBlog" };
+  if (!post) {
+    return { title: "Not found", robots: { index: false, follow: false } };
+  }
+  const url = `/blog/${post.slug}`;
   return {
-    title: `${post.title} — AffiliBlog`,
+    title: post.title,
     description: post.excerpt,
+    alternates: { canonical: url },
+    openGraph: {
+      type: "article",
+      title: post.title,
+      description: post.excerpt,
+      url,
+      publishedTime: post.publishedAt || undefined,
+      authors: post.authorName ? [post.authorName] : undefined,
+      section: post.category || undefined,
+      images: post.heroImage ? [{ url: post.heroImage, alt: post.title }] : undefined,
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: post.title,
+      description: post.excerpt,
+      images: post.heroImage ? [post.heroImage] : undefined,
+    },
   };
 }
 
@@ -44,6 +65,10 @@ export default async function BlogPost({
 
   return (
     <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: jsonLdScript(postJsonLd(post)) }}
+      />
       <AnnouncementBar />
       <Header categories={categories} />
 

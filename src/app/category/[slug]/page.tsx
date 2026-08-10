@@ -20,10 +20,22 @@ export async function generateMetadata({
   const { slug } = await params;
   const categories = await getCategories();
   const cat = categories.find((c) => c.slug === slug);
-  if (!cat) return { title: "Category not found — AffiliBlog" };
+  if (!cat) {
+    return { title: "Category not found", robots: { index: false, follow: false } };
+  }
+  const description = `Reviews, guides and deals in ${cat.name}.`;
+  const url = `/category/${cat.slug}`;
   return {
-    title: `${cat.name} — AffiliBlog`,
-    description: `Reviews, guides and deals in ${cat.name}.`,
+    title: cat.name,
+    description,
+    alternates: { canonical: url },
+    openGraph: {
+      type: "website",
+      title: cat.name,
+      description,
+      url,
+      images: cat.image ? [{ url: cat.image, alt: cat.name }] : undefined,
+    },
   };
 }
 

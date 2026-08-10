@@ -2,8 +2,9 @@ import type { Metadata } from "next";
 import PageShell from "@/components/PageShell";
 
 export const metadata: Metadata = {
-  title: "Terms of Use — AffiliBlog",
+  title: "Terms of Use",
   description: "The terms that govern your use of this website.",
+  alternates: { canonical: "/terms" },
 };
 
 export default function TermsPage() {

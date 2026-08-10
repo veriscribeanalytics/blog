@@ -6,8 +6,9 @@ import { listPublishedPosts } from "@/lib/queries";
 export const revalidate = 60;
 
 export const metadata: Metadata = {
-  title: "All Articles — AffiliBlog",
+  title: "All Articles",
   description: "Browse every review, guide, and buying recommendation we've published.",
+  alternates: { canonical: "/blog" },
 };
 
 export default async function BlogPage() {

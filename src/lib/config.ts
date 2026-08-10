@@ -12,6 +12,26 @@ export type TrustPoint = {
   label: string;
 };
 
+/** Public site name — used in metadata titles and JSON-LD `publisher`. */
+export const siteName = "AffiliBlog";
+
+/**
+ * Absolute origin of the deployed site, no trailing slash.
+ *
+ * Required for correct SEO output: `metadataBase` resolves relative OG image
+ * URLs against it, and sitemap/robots/JSON-LD all emit absolute URLs. Set
+ * NEXT_PUBLIC_SITE_URL in the deployment environment. The localhost fallback
+ * keeps dev working but must not be what production ships.
+ */
+export const siteUrl = (
+  process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"
+).replace(/\/+$/, "");
+
+/** Absolute URL for a site-relative path. */
+export function absoluteUrl(path = "/"): string {
+  return `${siteUrl}${path.startsWith("/") ? path : `/${path}`}`;
+}
+
 export const navLinks = [
   { label: "Deals", href: "/deals" },
   { label: "Reviews", href: "/reviews" },

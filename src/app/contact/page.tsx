@@ -2,8 +2,9 @@ import type { Metadata } from "next";
 import PageShell from "@/components/PageShell";
 
 export const metadata: Metadata = {
-  title: "Contact — AffiliBlog",
+  title: "Contact",
   description: "Get in touch with questions, corrections, or category suggestions.",
+  alternates: { canonical: "/contact" },
 };
 
 export default function ContactPage() {

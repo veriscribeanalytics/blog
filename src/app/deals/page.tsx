@@ -8,8 +8,9 @@ import { getDeals } from "@/lib/data";
 export const revalidate = 60;
 
 export const metadata: Metadata = {
-  title: "Deals — AffiliBlog",
+  title: "Deals",
   description: "Products we recommend that are currently below their usual price.",
+  alternates: { canonical: "/deals" },
 };
 
 export default async function DealsPage() {
