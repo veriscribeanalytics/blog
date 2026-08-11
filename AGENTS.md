@@ -14,7 +14,7 @@ Backend guidance lives in `BACKEND.md`.
 The UI matches the approved mockups and is wired end to end. Content comes from
 Postgres via `src/lib/queries.ts`, exposed to server components through the async
 getters in `src/lib/data.ts`. The Hermes agent writes posts over the REST API.
-`npm run build` passes; 18 routes exist and every header/footer link resolves.
+`npm run build` passes; 21 routes exist and every header/footer link resolves.
 
 Real and working: all routes (`/`, `/blog`, `/blog/[slug]`, `/category/[slug]`,
 `/deals`, `/reviews`, `/guides`, `/categories`, `/about`, `/contact`, and the legal
@@ -22,19 +22,31 @@ pages) · newsletter signup (`SubscribeForm` → `POST /api/newsletter`, rate-li
 · affiliate links (real `amazonUrl`s, `rel="nofollow sponsored noopener"`) · hero
 carousel (`HeroSection.tsx`, backed by the trending rail).
 
+Deploy target is Vercel + Neon on `blogs.veriscribeanalytics.com`. The runbook,
+including the exact environment variables, lives in `DEPLOY.md` — read that before
+deploying rather than re-deriving the steps.
+
 Still outstanding before launch:
 
-- **`NEXT_PUBLIC_SITE_URL` must be set in the deploy environment.** Until it is,
-  `robots.ts` serves `Disallow: /` and refuses to expose the sitemap — deliberate,
-  so an unconfigured deploy can't get indexed. Canonicals and OG URLs need it too.
-- **Images** — seed rows still point at hotlinked Unsplash CDN URLs. Fine for
+- **`NEXT_PUBLIC_SITE_URL` must be set in Vercel's environment variables.** It is
+  now in `.env.local`, which fixes local dev only — `.env*` is gitignored and never
+  reaches Vercel. `robots.ts` serves `Disallow: /` without it, and because
+  `robots.txt`/`sitemap.xml` are prerendered (`○ Static` in the build output), a
+  build with the variable missing bakes `Disallow: /` into the artifact until you
+  redeploy.
+- **Production database** — content still lives in local Postgres, which Vercel
+  can't reach. Copy it with `node db/migrate-to-neon.mjs` (see `DEPLOY.md`). Never
+  run `db/seed.sql` against production; it holds demo posts that are not the real
+  content.
+- **Images** — post rows still point at hotlinked Unsplash CDN URLs. Fine for
   art direction, not for production; Unsplash can rate-limit or pull them.
   Agent-written posts supply their own (allowlist in `next.config.ts`).
 - **No OG image** — `public/` still holds the default Next.js SVGs. Social shares
   fall back to no image. Add one and reference it in `layout.tsx`'s `openGraph`.
+- **Thin content** — 5 published posts across 1 category, so `/categories` and the
+  category listing are near-empty.
 - **Newsletter** stores to `newsletter_subscribers` only; the Resend forward is
   stubbed pending `RESEND_API_KEY`.
-- **Share buttons** — still `href="#"`.
 - **`npm audit`** reports 4 high-severity advisories in Next's own dependency
   chain (postcss / sharp / nanoid). Clearing them needs `next@16.3.0`, outside the
   pinned range — a deliberate upgrade, not a drive-by `--force`.
