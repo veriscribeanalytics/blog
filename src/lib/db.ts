@@ -29,6 +29,18 @@ function getPool(): Pool {
       "DATABASE_URL is not set. Copy .env.example to .env.local and fill it in.",
     );
   }
+  // A localhost connection string on Vercel is always a copy-paste of the dev
+  // value. Left alone it surfaces as `ECONNREFUSED 127.0.0.1:5432` blamed on
+  // whichever page prerendered first — usually a static one like /about that
+  // has no DB code of its own, which sends you looking in the wrong place.
+  if (process.env.VERCEL && /@(localhost|127\.0\.0\.1|\[::1\])[:/]/.test(connectionString)) {
+    throw new Error(
+      "DATABASE_URL points at localhost, but this is running on Vercel, which " +
+        "cannot reach your machine. Set DATABASE_URL in the Vercel project to the " +
+        "hosted (Neon) POOLED connection string — the host contains `-pooler`. " +
+        "See DEPLOY.md.",
+    );
+  }
   pool = new Pool({
     connectionString,
     max: MAX_CONNECTIONS,
