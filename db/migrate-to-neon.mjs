@@ -11,9 +11,13 @@
  * so the source of truth is a row copy, not the seed.
  *
  * Usage:
- *   node db/migrate-to-neon.mjs --target "postgresql://...@...neon.tech/db?sslmode=require"
- *   node db/migrate-to-neon.mjs --target "..." --apply     # actually write
- *   node db/migrate-to-neon.mjs --target "..." --apply --truncate
+ *   node db/migrate-to-neon.mjs                 # target from NEON_DATABASE_URL
+ *   node db/migrate-to-neon.mjs --apply         # actually write
+ *   node db/migrate-to-neon.mjs --apply --truncate
+ *
+ * The target comes from --target, else NEON_DATABASE_URL in the shell, else
+ * NEON_DATABASE_URL in .env.local. The source is always DATABASE_URL in
+ * .env.local.
  *
  * Dry-run by default: it connects, applies nothing, and prints the plan.
  * Pass --apply to write. Re-running with --apply is safe (ON CONFLICT DO
@@ -106,10 +110,17 @@ async function main() {
     console.error("No DATABASE_URL in .env.local — nothing to migrate from.");
     process.exit(1);
   }
-  const targetUrl = args.target ?? process.env.NEON_DATABASE_URL ?? null;
+  // Precedence: explicit flag, then shell env, then .env.local. Node does not
+  // load .env.local on its own, so the file lookup is what makes a bare
+  // `node db/migrate-to-neon.mjs` work.
+  const targetUrl =
+    args.target ??
+    process.env.NEON_DATABASE_URL ??
+    readEnvLocal("NEON_DATABASE_URL");
   if (!targetUrl) {
     console.error(
-      "No target. Pass --target \"<neon connection string>\" or set NEON_DATABASE_URL.",
+      "No target. Pass --target \"<neon connection string>\", or set\n" +
+        "NEON_DATABASE_URL in .env.local or the shell environment.",
     );
     process.exit(1);
   }
