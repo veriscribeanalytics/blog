@@ -19,7 +19,36 @@ import { Pool, type QueryResultRow } from "pg";
 // allow a wider pool since nothing else is competing for connections.
 const MAX_CONNECTIONS = process.env.VERCEL ? 3 : 10;
 
+const LOOPBACK = /@(localhost|127\.0\.0\.1|\[::1\])[:/]/;
+
 let pool: Pool | null = null;
+
+/**
+ * Turn a refused loopback connection into an actionable message.
+ *
+ * Raw, this surfaces as `ECONNREFUSED 127.0.0.1:5432` attributed to whichever
+ * page prerendered first — typically a static one like /about that contains no
+ * database code, because Footer and PageShell both call getCategories() and so
+ * every route touches the DB at build time. The reported page is misleading.
+ *
+ * Deliberately NOT gated on `process.env.VERCEL`: that variable is absent when
+ * a project disables "Automatically expose System Environment Variables", which
+ * is exactly when this diagnostic is most needed. A refused loopback connection
+ * is unambiguous wherever it happens, so explain it unconditionally.
+ */
+function explain(err: unknown): unknown {
+  const e = err as { code?: string; message?: string };
+  const cs = process.env.DATABASE_URL ?? "";
+  if (e?.code !== "ECONNREFUSED" || !LOOPBACK.test(cs)) return err;
+  return new Error(
+    `DATABASE_URL points at localhost (${e.message}). ` +
+      "If this is a deploy: the host cannot reach your machine — set DATABASE_URL " +
+      "to the hosted (Neon) POOLED connection string, whose host contains " +
+      "`-pooler` (see DEPLOY.md). If this is local: start Postgres with " +
+      "db/start-db.ps1.",
+    { cause: err },
+  );
+}
 
 function getPool(): Pool {
   if (pool) return pool;
@@ -27,18 +56,6 @@ function getPool(): Pool {
   if (!connectionString) {
     throw new Error(
       "DATABASE_URL is not set. Copy .env.example to .env.local and fill it in.",
-    );
-  }
-  // A localhost connection string on Vercel is always a copy-paste of the dev
-  // value. Left alone it surfaces as `ECONNREFUSED 127.0.0.1:5432` blamed on
-  // whichever page prerendered first — usually a static one like /about that
-  // has no DB code of its own, which sends you looking in the wrong place.
-  if (process.env.VERCEL && /@(localhost|127\.0\.0\.1|\[::1\])[:/]/.test(connectionString)) {
-    throw new Error(
-      "DATABASE_URL points at localhost, but this is running on Vercel, which " +
-        "cannot reach your machine. Set DATABASE_URL in the Vercel project to the " +
-        "hosted (Neon) POOLED connection string — the host contains `-pooler`. " +
-        "See DEPLOY.md.",
     );
   }
   pool = new Pool({
@@ -63,8 +80,12 @@ export async function query<T extends QueryResultRow = QueryResultRow>(
   text: string,
   params?: unknown[],
 ): Promise<T[]> {
-  const res = await getPool().query<T>(text, params ?? []);
-  return res.rows;
+  try {
+    const res = await getPool().query<T>(text, params ?? []);
+    return res.rows;
+  } catch (err) {
+    throw explain(err);
+  }
 }
 
 export async function one<T extends QueryResultRow = QueryResultRow>(
@@ -79,7 +100,14 @@ export async function one<T extends QueryResultRow = QueryResultRow>(
 export async function withTransaction<T>(
   fn: (client: import("pg").PoolClient) => Promise<T>,
 ): Promise<T> {
-  const client = await getPool().connect();
+  let client;
+  try {
+    client = await getPool().connect();
+  } catch (err) {
+    // Acquiring the client is the step that fails when the DB is unreachable,
+    // so it needs the same diagnostic as query().
+    throw explain(err);
+  }
   try {
     await client.query("BEGIN");
     const result = await fn(client);
