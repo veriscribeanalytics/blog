@@ -1,9 +1,17 @@
 import Image from "next/image";
 import { Check } from "./icons";
 import StarRating from "./StarRating";
+import { AFFILIATE_REL, affiliateHref } from "@/lib/affiliate";
 import type { Product } from "@/lib/data";
 
-export default function ProductCard({ p }: { p: Product }) {
+export default function ProductCard({
+  p,
+  postSlug,
+}: {
+  p: Product;
+  /** Referring post, so the click is attributable to a page. */
+  postSlug?: string;
+}) {
   return (
     <div
       id={`product-${p.rank.replace("#", "")}`}
@@ -66,9 +74,9 @@ export default function ProductCard({ p }: { p: Product }) {
             {/* CTA row: View on Amazon button */}
             <div className="mt-5 flex items-center gap-3">
               <a
-                href={p.amazonUrl}
+                href={affiliateHref(p, postSlug)}
                 target="_blank"
-                rel="nofollow sponsored noopener"
+                rel={AFFILIATE_REL}
                 className="inline-flex items-center gap-2 bg-ink text-cream text-[13px] font-semibold px-7 py-2.5 hover:bg-olive transition-colors"
               >
                 View on Amazon →

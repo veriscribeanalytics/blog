@@ -1,15 +1,17 @@
 import type { Metadata } from "next";
 import PageShell from "@/components/PageShell";
+import { pageOpenGraph } from "@/lib/config";
 
 export const metadata: Metadata = {
   title: "Affiliate Disclosure",
   description: "How we earn from product recommendations and affiliate links.",
   alternates: { canonical: "/disclosure" },
+  openGraph: pageOpenGraph("/disclosure"),
 };
 
 export default function DisclosurePage() {
   return (
-    <PageShell title="Affiliate Disclosure" eyebrow="Legal" width="prose">
+    <PageShell path="/disclosure" title="Affiliate Disclosure" eyebrow="Legal" width="prose">
       <div className="prose-page mt-8">
         <p>
           <strong>Last updated: {new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}</strong>

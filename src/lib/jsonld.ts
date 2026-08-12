@@ -22,24 +22,49 @@ const CURRENCY = "INR";
 
 type Json = Record<string, unknown>;
 
+/**
+ * The later of two ISO timestamps, falling back to `fallback` when `candidate`
+ * is empty or unparseable.
+ */
+function laterOf(candidate: string, fallback: string): string {
+  if (!candidate) return fallback;
+  const a = new Date(candidate).getTime();
+  const b = new Date(fallback).getTime();
+  if (Number.isNaN(a)) return fallback;
+  if (Number.isNaN(b)) return candidate;
+  return a > b ? candidate : fallback;
+}
+
 function productLd(p: Product, postUrl: string): Json {
+  // `position` belongs on the wrapping ListItem, not here — see postJsonLd.
   const ld: Json = {
     "@type": "Product",
     name: p.name,
-    position: p.rank.replace("#", ""),
   };
   if (p.image) ld.image = p.image;
-  if (p.why) ld.description = p.why;
 
   // Only claim an offer when there's a real price behind it.
   if (p.priceValue != null && p.priceValue > 0) {
-    ld.offers = {
+    const offer: Json = {
       "@type": "Offer",
       price: p.priceValue.toFixed(2),
       priceCurrency: CURRENCY,
-      availability: "https://schema.org/InStock",
       url: p.amazonUrl || postUrl,
+      // No `availability`: nothing here revalidates stock against Amazon, and
+      // the page shows no availability, so claiming InStock would be inventing
+      // a fact. An absent value is treated as unknown rather than a false one.
     };
+    // The struck-through MRP is rendered next to the price in ProductCard, so
+    // the list price is a visible claim and safe to emit.
+    if (p.mrpValue != null && p.mrpValue > p.priceValue) {
+      offer.priceSpecification = {
+        "@type": "PriceSpecification",
+        priceCurrency: CURRENCY,
+        price: p.mrpValue.toFixed(2),
+        valueAddedTaxIncluded: true,
+      };
+    }
+    ld.offers = offer;
   }
 
   // Google drops AggregateRating unless both a value and a positive count are
@@ -71,18 +96,31 @@ export function postJsonLd(post: PostDetail): Json {
     description: post.excerpt,
     url: postUrl,
     mainEntityOfPage: { "@type": "WebPage", "@id": postUrl },
-    inLanguage: "en",
+    inLanguage: "en-IN",
     isAccessibleForFree: true,
     publisher: { "@id": absoluteUrl("/#organization") },
   };
   if (post.heroImage) article.image = [post.heroImage];
   if (post.authorName) {
-    article.author = { "@type": "Person", name: post.authorName };
+    // `url` points at /editorial rather than a per-author page, which doesn't
+    // exist: an author entity Google can resolve to a real page describing how
+    // this site reviews things beats a bare unresolvable name.
+    article.author = {
+      "@type": "Person",
+      name: post.authorName,
+      url: absoluteUrl("/editorial"),
+    };
   }
   if (post.publishedAt) {
     article.datePublished = post.publishedAt;
-    // No separate updated timestamp on PostDetail; published is the honest floor.
-    article.dateModified = post.publishedAt;
+    // Real edit time when there is one — the sitemap already reports it, so
+    // freezing this to publishedAt made the two disagree.
+    //
+    // Clamped to never precede publication: `updated_at` defaults to the insert
+    // time while `published_at` can be set to any date, so a backdated import or
+    // a scheduled post yields updated < published, which is nonsense to a
+    // consumer and gets the field ignored.
+    article.dateModified = laterOf(post.updatedAt, post.publishedAt);
   }
   if (post.category) article.articleSection = post.category;
   graph.push(article);
@@ -137,4 +175,27 @@ export function postJsonLd(post: PostDetail): Json {
 /** Serialize for embedding. `<` is escaped so a stray `</script>` can't break out. */
 export function jsonLdScript(data: Json): string {
   return JSON.stringify(data).replace(/</g, "\\u003c");
+}
+
+/**
+ * BreadcrumbList for a `Home › <page>` trail.
+ *
+ * Every page rendered through `PageShell` shows this trail as HTML, but only post
+ * pages emitted the matching schema — so a dozen routes had breadcrumbs a reader
+ * could see and Google wouldn't render as a SERP trail.
+ */
+export function breadcrumbJsonLd(items: { name: string; path: string }[]): Json {
+  return {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "Home", item: absoluteUrl("/") },
+      ...items.map((it, i) => ({
+        "@type": "ListItem",
+        position: i + 2,
+        name: it.name,
+        item: absoluteUrl(it.path),
+      })),
+    ],
+  };
 }

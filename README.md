@@ -62,7 +62,7 @@ never commit real secrets.**
 |---|---|---|---|
 | `DATABASE_URL` | yes | `postgresql://postgres:postgres@localhost:5432/affiliblog` | Local Postgres connection string. |
 | `AGENT_API_KEY` | yes | (long random string) | The Hermes agent sends this as `Authorization: Bearer <key>`. |
-| `AMAZON_AFFILIATE_TAG` | no | `affiliblog-21` | Informational for v1 — **read by nothing**. The agent must bake `?tag=affiliblog-21` into each `amazonUrl` itself today. |
+| `AMAZON_AFFILIATE_TAG` | no | `affiliblog-21` | The associate id every `amazonUrl` must carry. `schema.ts` rejects a write whose `tag=` is missing or doesn't match this value; unset, it still requires *some* `tag=`. |
 | `RESEND_API_KEY` | no | _(blank)_ | When set, `/api/newsletter` could also forward to Resend. v1 just stores subscribers locally. |
 
 ### Generate an `AGENT_API_KEY` (PowerShell)
@@ -357,17 +357,18 @@ npx tsc --noEmit # typecheck
 
 ## 10. Known gaps (before launch)
 
-- **Affiliate links not rendered** — `amazon_url` is stored and validated but the read
-  path drops it (`types.ts` `Product` has no `amazonUrl`, `ProductCard.tsx` ships
-  `href="#"`). Site can't earn until this ships. Three-line frontend fix.
-- **`AMAZON_AFFILIATE_TAG` read by nothing** — agent bakes `?tag=affiliblog-21` into
-  `amazonUrl` itself today.
 - **Seed images are Unsplash** — replace with owned images before launch.
 - **Duplicate slug → raw `500`** instead of a clean `409`.
-- **`body` not sanitized server-side** on write (stored XSS risk while the single key
-  is the only writer).
-- **Several nav routes 404** (`/deals`, `/reviews`, `/guides`, `/about`, `/contact`,
-  `/category/[slug]`, `/blog`, legal pages) — pages exist but some are placeholders.
+- **Thin content** — 5 published posts across 1 category, so `/categories` and the
+  category listing are near-empty. Empty categories emit `noindex`.
+- **`npm audit`: 4 high** in Next's own dependency chain (postcss / sharp /
+  nanoid); clearing them needs `next@16.3.0`, above the pinned `16.2.12`.
+- **In-process rate limiting** (`src/lib/rateLimit.ts`) — per-instance counters, so
+  on serverless the effective limit scales with instance count.
+
+Resolved since this list was written: affiliate links render (and now route through
+`/go/<id>` for click tracking), `post.body` is sanitized on write *and* read, and
+every nav route resolves.
 
 ---
 
@@ -377,7 +378,8 @@ npx tsc --noEmit # typecheck
 > (host must be allowlisted in `next.config.ts` — see §8). Then `POST /api/posts`
 > (or `PUT /api/posts/:slug` to update) with the JSON in §7.3 using
 > `Authorization: Bearer $AGENT_API_KEY`. Money in **paise**, dates in **ISO UTC**,
-> ratings **0–5 half-star**, `amazonUrl` must include `?tag=affiliblog-21`. **Do not
+> ratings **0–5 half-star**, `amazonUrl` must include `?tag=affiliblog-21` (a write
+> without it is rejected `400`). **Do not
 > send display strings** (`date`, `price`, `reviews`…) — the backend derives them.
 > Expect `201 { slug }` on create, `200 { slug }` on update. On a slug collision,
 > treat it as "already exists — use PUT".

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Dancing_Script, Inter, Playfair_Display } from "next/font/google";
-import { absoluteUrl, siteName, siteUrl } from "@/lib/config";
+import { absoluteUrl, ogImage, siteName, siteUrl } from "@/lib/config";
 import "./globals.css";
 
 const inter = Inter({
@@ -12,15 +12,20 @@ const inter = Inter({
 const playfair = Playfair_Display({
   variable: "--font-playfair",
   subsets: ["latin"],
+  // Italic is real: the post pull quote and `.headline-accent` both use it.
   style: ["normal", "italic"],
   display: "swap",
 });
 
-// Only used for the newsletter tagline — "Smarter. Buying. Better. Life."
+// Only used for the newsletter tagline — "Smarter. Buying. Better. Life." — which
+// lives inside a `hidden lg:block` band. `preload: false` keeps the design while
+// stopping every mobile visitor from fetching a font they can never see; the
+// browser still loads it on demand for the desktop layout.
 const dancing = Dancing_Script({
   variable: "--font-dancing",
   subsets: ["latin"],
   display: "swap",
+  preload: false,
 });
 
 const title = `${siteName} — Reviews, Deals & Buying Guides`;
@@ -37,7 +42,10 @@ export const metadata: Metadata = {
   },
   description,
   applicationName: siteName,
-  alternates: { canonical: "/" },
+  alternates: {
+    canonical: "/",
+    types: { "application/rss+xml": [{ url: "/feed.xml", title: siteName }] },
+  },
   robots: {
     index: true,
     follow: true,
@@ -49,9 +57,16 @@ export const metadata: Metadata = {
     title,
     description,
     url: "/",
+    // en-IN: every price on the site is INR and the audience is India.
     locale: "en_IN",
+    images: [ogImage],
   },
-  twitter: { card: "summary_large_image", title, description },
+  twitter: {
+    card: "summary_large_image",
+    title,
+    description,
+    images: [ogImage.url],
+  },
 };
 
 export default function RootLayout({
@@ -70,6 +85,16 @@ export default function RootLayout({
         "@id": absoluteUrl("/#organization"),
         name: siteName,
         url: absoluteUrl("/"),
+        // The generated OG card doubles as the publisher logo — it's the only
+        // brand image that exists, and an Organization with no logo is a weak
+        // E-E-A-T signal for a product-review site.
+        logo: {
+          "@type": "ImageObject",
+          url: absoluteUrl("/opengraph-image"),
+          width: 1200,
+          height: 630,
+        },
+        description,
       },
       {
         "@type": "WebSite",
@@ -78,7 +103,7 @@ export default function RootLayout({
         url: absoluteUrl("/"),
         description,
         publisher: { "@id": absoluteUrl("/#organization") },
-        inLanguage: "en",
+        inLanguage: "en-IN",
       },
     ],
   };

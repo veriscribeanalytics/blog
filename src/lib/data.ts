@@ -56,6 +56,12 @@ export const getPostBySlug = cache(
   async (slug: string): Promise<PostDetail | null> => dbGetPostBySlug(slug),
 );
 
+/** All published posts, newest first — for /blog. */
+export const getAllPosts = cache(
+  async (limit = 100): Promise<{ posts: Post[]; total: number }> =>
+    dbListPublishedPosts(limit, 0),
+);
+
 /** All published posts in a category, for /category/[slug]. */
 export const getCategoryPosts = cache(
   async (categorySlug: string, limit = 100): Promise<{ posts: Post[]; total: number }> =>

@@ -34,7 +34,7 @@ export default async function CategoriesSection() {
                   src={c.image}
                   alt={c.name}
                   fill
-                  sizes="(max-width: 1024px) 50vw, 33vw"
+                  sizes="(max-width: 1024px) 50vw, 440px"
                   className="object-cover transition-transform duration-[900ms] ease-out group-hover:scale-[1.04]"
                 />
                 {/* scrim keeps the label legible on light photography */}

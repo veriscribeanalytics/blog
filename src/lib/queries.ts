@@ -67,6 +67,21 @@ interface CategoryRow {
 
 /* ------------------------------- mappers -------------------------------- */
 
+/**
+ * TIMESTAMPTZ -> ISO string.
+ *
+ * `pg` hands back `Date` objects for timestamp columns, so the `string` types on
+ * the row interfaces are a lie that leaks: `JSON.stringify` happens to serialize
+ * a Date correctly (which is why JSON-LD looked fine) but Next's metadata
+ * serializer does not, and `article:published_time` shipped as `[object Object]`.
+ * Normalise at the boundary so everything downstream really is a string.
+ */
+function isoOrEmpty(v: unknown): string {
+  if (!v) return "";
+  const d = v instanceof Date ? v : new Date(String(v));
+  return Number.isNaN(d.getTime()) ? "" : d.toISOString();
+}
+
 function mapPost(r: PostRow): Post {
   return {
     slug: r.slug,
@@ -81,6 +96,7 @@ function mapPost(r: PostRow): Post {
 
 function mapProduct(r: ProductRow): Product {
   return {
+    id: r.id,
     rank: formatRank(r.rank_num),
     badge: r.badge ?? "",
     name: r.name,
@@ -111,10 +127,17 @@ const POST_LIST_COLS = `
   c.name AS category_name, c.slug AS category_slug
 `;
 
+/**
+ * Published posts, newest first.
+ *
+ * `withTotal` gates a second COUNT(*) query. Only the API route paginates, so
+ * the page routes skip it rather than paying for a number they discard.
+ */
 export async function listPublishedPosts(
   limit = 20,
   offset = 0,
   categorySlug?: string,
+  withTotal = false,
 ): Promise<{ posts: Post[]; total: number }> {
   const where = categorySlug ? `AND c.slug = $3` : "";
   const params = categorySlug
@@ -129,6 +152,12 @@ export async function listPublishedPosts(
       LIMIT $1 OFFSET $2`,
     params,
   );
+  const posts = rows.map(mapPost);
+  if (!withTotal) {
+    // Exact when the page isn't truncated, which is the only case a caller that
+    // opted out could care about.
+    return { posts, total: posts.length };
+  }
   const countRow = await one<{ count: string }>(
     `SELECT COUNT(*)::text AS count
        FROM posts p
@@ -136,10 +165,7 @@ export async function listPublishedPosts(
       WHERE p.is_published = TRUE ${categorySlug ? "AND c.slug = $1" : ""}`,
     categorySlug ? [categorySlug] : [],
   );
-  return {
-    posts: rows.map(mapPost),
-    total: countRow ? Number(countRow.count) : 0,
-  };
+  return { posts, total: countRow ? Number(countRow.count) : 0 };
 }
 
 /**
@@ -208,28 +234,30 @@ export async function getPostBySlug(slug: string): Promise<PostDetail | null> { 
   );
   if (!post || post.id == null) return null;
 
-  const products = await query<ProductRow>(
-    `SELECT pr.*, pp.rank_num, pp.badge, pp.display_order
-       FROM post_products pp
-       JOIN products pr ON pr.id = pp.product_id
-      WHERE pp.post_id = $1
-      ORDER BY pp.display_order ASC`,
-    [post.id],
-  );
-
-  let related: Post[] = [];
-  if (post.category_id != null) {
-    const relRows = await query<PostRow>(
-      `SELECT ${POST_LIST_COLS}
-         FROM posts p
-         LEFT JOIN categories c ON c.id = p.category_id
-        WHERE p.category_id = $1 AND p.id <> $2 AND p.is_published = TRUE
-        ORDER BY p.published_at DESC NULLS LAST
-        LIMIT 3`,
-      [post.category_id, post.id],
-    );
-    related = relRows.map(mapPost);
-  }
+  // Products and related posts are independent of each other, so overlap the
+  // two round-trips rather than paying for them in series.
+  const [products, relRows] = await Promise.all([
+    query<ProductRow>(
+      `SELECT pr.*, pp.rank_num, pp.badge, pp.display_order
+         FROM post_products pp
+         JOIN products pr ON pr.id = pp.product_id
+        WHERE pp.post_id = $1
+        ORDER BY pp.display_order ASC`,
+      [post.id],
+    ),
+    post.category_id == null
+      ? Promise.resolve([] as PostRow[])
+      : query<PostRow>(
+          `SELECT ${POST_LIST_COLS}
+             FROM posts p
+             LEFT JOIN categories c ON c.id = p.category_id
+            WHERE p.category_id = $1 AND p.id <> $2 AND p.is_published = TRUE
+            ORDER BY p.published_at DESC NULLS LAST
+            LIMIT 3`,
+          [post.category_id, post.id],
+        ),
+  ]);
+  const related: Post[] = relRows.map(mapPost);
 
   return {
     slug: post.slug,
@@ -239,7 +267,8 @@ export async function getPostBySlug(slug: string): Promise<PostDetail | null> { 
     categorySlug: post.category_slug ?? slugify(post.category_name ?? ""),
     authorName: post.author_name ?? "",
     authorAvatar: post.author_avatar ?? "",
-    publishedAt: post.published_at ?? "",
+    publishedAt: isoOrEmpty(post.published_at),
+    updatedAt: isoOrEmpty(post.updated_at),
     date: formatDate(post.published_at),
     readTime: formatReadTime(post.read_time_minutes),
     readTimeMinutes: post.read_time_minutes ?? 0,
@@ -328,7 +357,7 @@ export async function listPostSitemapEntries(): Promise<
       WHERE is_published = TRUE
       ORDER BY COALESCE(updated_at, published_at) DESC NULLS LAST`,
   );
-  return rows.map((r) => ({ slug: r.slug, updatedAt: r.updated_at }));
+  return rows.map((r) => ({ slug: r.slug, updatedAt: isoOrEmpty(r.updated_at) || null }));
 }
 
 /** Category slugs that actually have published posts — empty ones are noise. */
@@ -342,7 +371,7 @@ export async function listCategorySitemapEntries(): Promise<
       GROUP BY c.slug
       ORDER BY c.slug ASC`,
   );
-  return rows.map((r) => ({ slug: r.slug, updatedAt: r.updated_at }));
+  return rows.map((r) => ({ slug: r.slug, updatedAt: isoOrEmpty(r.updated_at) || null }));
 }
 
 /* ------------------------------- writes --------------------------------- */
@@ -523,4 +552,39 @@ export async function subscribeEmail(email: string): Promise<boolean> {
     [email],
   );
   return row != null;
+}
+
+/* --------------------------- affiliate clicks --------------------------- */
+
+/** The destination for an outbound click, looked up by product id. */
+export async function getProductAmazonUrl(id: number): Promise<string | null> {
+  const row = await one<{ amazon_url: string }>(
+    `SELECT amazon_url FROM products WHERE id = $1`,
+    [id],
+  );
+  return row?.amazon_url ?? null;
+}
+
+/**
+ * Record one outbound click. Never throws — see the caller in
+ * `/go/[id]/route.ts`: losing a row of analytics must not cost a commission.
+ */
+export async function recordAffiliateClick(input: {
+  productId: number;
+  postSlug: string | null;
+  userAgent: string | null;
+  referrer: string | null;
+}): Promise<void> {
+  try {
+    await query(
+      `INSERT INTO affiliate_clicks (product_id, post_slug, user_agent, referrer)
+       VALUES ($1, $2, $3, $4)`,
+      [input.productId, input.postSlug, input.userAgent, input.referrer],
+    );
+  } catch (err) {
+    console.error(
+      "[clicks] failed to record click",
+      err instanceof Error ? err.message : err,
+    );
+  }
 }

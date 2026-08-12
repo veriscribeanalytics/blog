@@ -19,7 +19,7 @@ export default function PostGrid({
 
   return (
     <div className="mt-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-12 lg:gap-x-10 lg:gap-y-16">
-      {posts.map((post) => (
+      {posts.map((post, i) => (
         <Link
           key={post.slug}
           href={`/blog/${post.slug}`}
@@ -30,7 +30,12 @@ export default function PostGrid({
               src={post.image}
               alt={post.title}
               fill
-              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+              // First card is the LCP element on every listing page.
+              priority={i === 0}
+              // A 3-up grid inside a 1400px shell never renders a card wider
+              // than ~440px, so cap the srcset there instead of letting 100vw
+              // pull the full 3840w ladder into the HTML.
+              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 440px"
               className="object-cover transition-transform duration-[900ms] ease-out group-hover:scale-[1.04]"
             />
             <span className="absolute top-4 left-4 bg-paper/95 backdrop-blur-sm text-[10px] font-semibold tracking-widest uppercase px-3 py-1.5">

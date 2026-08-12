@@ -27,9 +27,52 @@ export const siteUrl = (
   process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"
 ).replace(/\/+$/, "");
 
-/** Absolute URL for a site-relative path. */
+/**
+ * Absolute URL for a site-relative path.
+ *
+ * Refuses to build a localhost URL in a production build. Without this the
+ * fallback above fails *silently*: `metadataBase`, every canonical, every
+ * sitemap `<loc>` and every JSON-LD `@id` quietly become
+ * `http://localhost:3000` and the build still goes green.
+ *
+ * Throwing here rather than at module load is deliberate — `robots.ts` handles
+ * the unset case itself (serving `Disallow: /`) and must stay importable, and
+ * lint/type-generation never call this. `sitemap.ts` and `layout.tsx` do, so a
+ * misconfigured production build fails loudly at the point it would have
+ * emitted a wrong URL.
+ */
 export function absoluteUrl(path = "/"): string {
+  if (
+    process.env.NODE_ENV === "production" &&
+    !process.env.NEXT_PUBLIC_SITE_URL
+  ) {
+    throw new Error(
+      "NEXT_PUBLIC_SITE_URL is not set. A production build without it would " +
+        "emit http://localhost:3000 as the canonical origin for every page. " +
+        "Set it in the deployment environment (see DEPLOY.md) and redeploy.",
+    );
+  }
   return `${siteUrl}${path.startsWith("/") ? path : `/${path}`}`;
+}
+
+/**
+ * The generated social card at `src/app/opengraph-image.tsx`.
+ *
+ * File-based `opengraph-image` only applies to the segment it sits in — it is NOT
+ * inherited by nested routes — and a page that declares its own `openGraph`
+ * replaces the parent's object wholesale. So every page has to name the image
+ * explicitly or it ships no `og:image` at all.
+ */
+export const ogImage = {
+  url: "/opengraph-image",
+  width: 1200,
+  height: 630,
+  alt: `${siteName} — honest reviews, curated deals, buying guides`,
+};
+
+/** `openGraph` block for a plain page: its own canonical URL plus the site card. */
+export function pageOpenGraph(path: string) {
+  return { url: path, images: [ogImage] };
 }
 
 export const navLinks = [

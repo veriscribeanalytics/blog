@@ -19,12 +19,14 @@ getters in `src/lib/data.ts`. The Hermes agent writes posts over the REST API.
 Real and working: all routes (`/`, `/blog`, `/blog/[slug]`, `/category/[slug]`,
 `/deals`, `/reviews`, `/guides`, `/categories`, `/about`, `/contact`, and the legal
 pages) · newsletter signup (`SubscribeForm` → `POST /api/newsletter`, rate-limited)
-· affiliate links (real `amazonUrl`s, `rel="nofollow sponsored noopener"`) · hero
-carousel (`HeroSection.tsx`, backed by the trending rail).
+· affiliate links (real `amazonUrl`s, tracked through `/go/<id>`,
+`rel="nofollow sponsored noopener"`) · hero carousel (`HeroSection.tsx`, backed by
+the trending rail) · `robots.txt` / `sitemap.xml` / `feed.xml` / generated OG card.
 
 Deploy target is Vercel + Neon on `blogs.veriscribeanalytics.com`. The runbook,
-including the exact environment variables, lives in `DEPLOY.md` — read that before
-deploying rather than re-deriving the steps.
+including the exact environment variables **and migration 0002, which must be applied
+before the next deploy**, lives in `DEPLOY.md` — read that before deploying rather
+than re-deriving the steps.
 
 Still outstanding before launch:
 
@@ -41,10 +43,11 @@ Still outstanding before launch:
 - **Images** — post rows still point at hotlinked Unsplash CDN URLs. Fine for
   art direction, not for production; Unsplash can rate-limit or pull them.
   Agent-written posts supply their own (allowlist in `next.config.ts`).
-- **No OG image** — `public/` still holds the default Next.js SVGs. Social shares
-  fall back to no image. Add one and reference it in `layout.tsx`'s `openGraph`.
+- **OG card is off-face** — `src/app/opengraph-image.tsx` generates a real 1200×630
+  card from the design tokens, but `next/og` ships no serif so the headline is its
+  default sans, not Playfair. Needs a font file in-repo to fix properly.
 - **Thin content** — 5 published posts across 1 category, so `/categories` and the
-  category listing are near-empty.
+  category listing are near-empty. Empty categories emit `noindex`.
 - **Newsletter** stores to `newsletter_subscribers` only; the Resend forward is
   stubbed pending `RESEND_API_KEY`.
 - **`npm audit`** reports 4 high-severity advisories in Next's own dependency
@@ -56,17 +59,48 @@ Still outstanding before launch:
 Treat this as load-bearing — it's an affiliate site, organic search is the point.
 
 - `src/lib/config.ts` owns `siteUrl` / `absoluteUrl()`. Build every absolute URL
-  from those, never hardcode the origin.
+  from those, never hardcode the origin. `absoluteUrl()` throws in a production
+  build when `NEXT_PUBLIC_SITE_URL` is missing, rather than silently emitting
+  localhost canonicals — so that misconfiguration fails the build instead of
+  shipping.
 - `layout.tsx` sets `metadataBase` and a title template (`%s — AffiliBlog`), so
   **page metadata must set only its own title** — no manual ` — AffiliBlog` suffix.
-- Every page sets `alternates.canonical`. New routes must too.
+- Every page sets `alternates.canonical` **and** `openGraph`. A page that omits
+  `openGraph` inherits the layout's wholesale, including `url: "/"` — so use
+  `pageOpenGraph(path)` from `config.ts`, which sets the right `og:url` and the
+  shared OG card. File-based `opengraph-image` is NOT inherited by nested routes.
 - `src/app/sitemap.ts` and `robots.ts` are generated from the DB; new indexable
-  route groups need adding to `STATIC_ROUTES` in `sitemap.ts`.
+  route groups need adding to `STATIC_ROUTES` in `sitemap.ts`. Google ignores
+  `priority`/`changeFrequency` and reads `lastmod`, so content routes there are
+  stamped with the freshest post's timestamp.
 - `src/lib/jsonld.ts` emits Article + BreadcrumbList + ItemList/Product + FAQPage
-  for posts. **Only describe what's visible on the page** — inventing an offer or
-  rating that a reader can't see violates Google's structured-data policy.
+  for posts, and `breadcrumbJsonLd()` covers every `PageShell` route. **Only
+  describe what's visible on the page** — inventing an offer or rating that a
+  reader can't see violates Google's structured-data policy. `Offer` therefore
+  carries no `availability`: nothing here revalidates stock against Amazon.
 - `Product` carries raw `priceValue` / `mrpValue` / `reviewCount` alongside the
   display strings; JSON-LD uses the raw numbers, never the formatted `"₹2,499"`.
+- Timestamps from `pg` arrive as `Date` objects despite the `string` row types.
+  `isoOrEmpty()` in `queries.ts` normalises them at the boundary — skip it and
+  metadata fields serialize as `[object Object]`.
+- `dateModified` / `article:modified_time` are clamped to never precede
+  publication, because `updated_at` defaults to insert time while `published_at`
+  can be backdated.
+
+## Affiliate links
+
+The whole site earns through these, so the invariants are enforced, not documented.
+
+- **Every outbound buy link goes through `/go/<product-id>?from=<post-slug>`**,
+  which logs to `affiliate_clicks` then 302s to the real URL. Build the href with
+  `affiliateHref()` and the rel with `AFFILIATE_REL`, both in `src/lib/affiliate.ts`
+  — don't hand-roll either at a render site.
+- **`amazonUrl` must carry `?tag=`.** `schema.ts` rejects a write without it (and
+  rejects a tag that doesn't match `AMAZON_AFFILIATE_TAG`), and migration 0002 adds
+  a matching DB `CHECK`. This matters because `upsertProduct` never rewrites
+  `amazon_url`, so one untagged write would be permanently unpaid.
+- `/go/` is disallowed in `robots.ts` — it redirects off-site, so crawling it wastes
+  budget and pollutes the click log.
 
 ## Security
 
@@ -74,6 +108,13 @@ Treat this as load-bearing — it's an affiliate site, organic search is the poi
   It is sanitized twice — on write (`schema.ts` transform) and on read
   (`getPostBySlug`) — via the allowlist in `src/lib/sanitize.ts`. Keep both. If a
   post needs a new tag, widen the allowlist; never bypass the sanitizer.
+  Two things in there are load-bearing and easy to break by "tidying":
+  `section` is allowlisted because dropping it destroys the `id`s the TOC
+  scroll-spy anchors to, and `nofollow sponsored` is applied to **outbound links
+  only** — forcing it on internal links would block internal link equity and
+  declare our own pages paid placements.
+- `/go/<id>` reads its destination from the DB, never from the query string, so it
+  can't be turned into an open redirect. It returns 404 for unknown ids.
 - Writes are authenticated with a single bearer key (`src/lib/auth.ts`) and fail
   closed when `AGENT_API_KEY` is unset.
 - `/api/newsletter` is the only unauthenticated write; it's IP rate-limited
@@ -96,6 +137,10 @@ src/
     globals.css             @theme tokens, base styles, .eyebrow, .post-body
     sitemap.ts              DB-driven sitemap.xml
     robots.ts               robots.txt (Disallow: / until SITE_URL is set)
+    feed.xml/route.ts       RSS 2.0
+    opengraph-image.tsx     generated 1200x630 social card
+    not-found.tsx           404 with real header/footer
+    go/[id]/route.ts        affiliate click log -> 302 to Amazon
     blog/page.tsx           all articles
     blog/[slug]/page.tsx    post page (async params) + post JSON-LD
     category/[slug]/        per-category listing
@@ -115,13 +160,16 @@ src/
     LatestPosts.tsx  PostGrid.tsx  PageShell.tsx
     PostSidebar.tsx         TOC scroll-spy + deal card + related
     ProductCard.tsx  StarRating.tsx  TrustStrip.tsx
-    AnnouncementBar.tsx  AccentTitle.tsx  Manifesto.tsx
+    TopPickCard.tsx         above-fold top pick + jump to rankings
+    StickyBuyBar.tsx        mobile-only bottom buy bar
+    AnnouncementBar.tsx  AccentTitle.tsx  Manifesto.tsx (unused)
     icons.tsx               inline SVGs, currentColor
   lib/
     data.ts                 the seam server components import
     queries.ts              all SQL
     db.ts                   lazy pg pool (server-only)
-    config.ts               DB-free static config, siteUrl/absoluteUrl
+    config.ts               DB-free static config, siteUrl/absoluteUrl, pageOpenGraph
+    affiliate.ts            /go href + rel for outbound links (client-safe)
     types.ts                display types
     schema.ts               zod validation for agent writes
     sanitize.ts             post-body HTML allowlist
@@ -131,6 +179,7 @@ src/
     auth.ts  env.ts  apiError.ts  revalidate.ts
 db/
   migrations/0001_init.sql
+  migrations/0002_affiliate_clicks.sql
   seed.sql
 ```
 

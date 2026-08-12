@@ -1,16 +1,19 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import PageShell from "@/components/PageShell";
+import { pageOpenGraph } from "@/lib/config";
 
 export const metadata: Metadata = {
   title: "About",
   description: "Who we are and how we approach product reviews.",
   alternates: { canonical: "/about" },
+  openGraph: pageOpenGraph("/about"),
 };
 
 export default function AboutPage() {
   return (
     <PageShell
+      path="/about"
       title="About AffiliBlog"
       eyebrow="Who We Are"
       width="prose"
