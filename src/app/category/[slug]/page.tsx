@@ -1,12 +1,18 @@
 import type { Metadata } from "next";
-import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import AnnouncementBar from "@/components/AnnouncementBar";
 import Footer from "@/components/Footer";
 import Header from "@/components/Header";
 import Newsletter from "@/components/Newsletter";
-import { getCategories, getCategoryPosts } from "@/lib/data";
+import PostGrid from "@/components/PostGrid";
+import {
+  getCategories,
+  getCategoryPosts,
+  getCategorySitemapEntries,
+  ogImage,
+} from "@/lib/data";
+import { breadcrumbJsonLd, jsonLdScript } from "@/lib/jsonld";
 
 export const revalidate = 60;
 
@@ -21,22 +27,43 @@ export async function generateMetadata({
   const categories = await getCategories();
   const cat = categories.find((c) => c.slug === slug);
   if (!cat) {
-    return { title: "Category not found", robots: { index: false, follow: false } };
+    return {
+      title: "Category not found",
+      robots: { index: false, follow: false },
+      // Without this the root layout's `canonical: "/"` is inherited, pointing
+      // a missing category at the homepage.
+      alternates: { canonical: `/category/${slug}` },
+    };
   }
+  const { posts } = await getCategoryPosts(slug);
   const description = `Reviews, guides and deals in ${cat.name}.`;
   const url = `/category/${cat.slug}`;
   return {
     title: cat.name,
     description,
     alternates: { canonical: url },
+    // A category with no posts is a thin page and a soft-404 candidate. It stays
+    // reachable (the nav links every category) but must not be indexed.
+    robots: posts.length === 0 ? { index: false, follow: true } : undefined,
     openGraph: {
       type: "website",
       title: cat.name,
       description,
       url,
-      images: cat.image ? [{ url: cat.image, alt: cat.name }] : undefined,
+      // Category art is a hotlinked Unsplash URL; fall back to the site card so
+      // a share never ends up with no image at all.
+      images: cat.image ? [{ url: cat.image, alt: cat.name }] : [ogImage],
     },
   };
+}
+
+/**
+ * Prerender every category that has posts. Without this each category page is a
+ * cold render on first request after every revalidate window.
+ */
+export async function generateStaticParams(): Promise<Params[]> {
+  const entries = await getCategorySitemapEntries();
+  return entries.map((e) => ({ slug: e.slug }));
 }
 
 export default async function CategoryPage({
@@ -53,6 +80,16 @@ export default async function CategoryPage({
 
   return (
     <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: jsonLdScript(
+            breadcrumbJsonLd([
+              { name: cat.name, path: `/category/${cat.slug}` },
+            ]),
+          ),
+        }}
+      />
       <AnnouncementBar />
       <Header categories={categories} />
       <main className="flex-1">
@@ -75,42 +112,10 @@ export default async function CategoryPage({
           </h1>
           <p className="mt-3 text-[14px] text-muted">{cat.count}</p>
 
-          {posts.length === 0 ? (
-            <p className="mt-10 text-[15px] text-body">
-              No articles in this category yet — check back soon.
-            </p>
-          ) : (
-            <div className="mt-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-12 lg:gap-x-10 lg:gap-y-16">
-              {posts.map((post) => (
-                <Link
-                  key={post.slug}
-                  href={`/blog/${post.slug}`}
-                  className="group flex flex-col"
-                >
-                  <div className="relative aspect-[4/5] overflow-hidden">
-                    <Image
-                      src={post.image}
-                      alt={post.title}
-                      fill
-                      sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                      className="object-cover transition-transform duration-[900ms] ease-out group-hover:scale-[1.04]"
-                    />
-                    <span className="absolute top-4 left-4 bg-paper/95 backdrop-blur-sm text-[10px] font-semibold tracking-widest uppercase px-3 py-1.5">
-                      {post.category}
-                    </span>
-                  </div>
-                  <div className="flex-1 pt-6">
-                    <h2 className="font-serif text-[21px] lg:text-[23px] leading-[1.25] group-hover:text-bronze transition-colors line-clamp-3">
-                      {post.title}
-                    </h2>
-                    <p className="mt-3 text-[11px] tracking-[0.14em] uppercase text-muted">
-                      {post.date} &nbsp;·&nbsp; {post.readTime}
-                    </p>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          )}
+          <PostGrid
+            posts={posts}
+            empty="No articles in this category yet — check back soon."
+          />
         </section>
         <Newsletter />
       </main>

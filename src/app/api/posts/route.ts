@@ -11,7 +11,8 @@ export async function GET(request: NextRequest) {
   const offset = Math.max(0, parseInt(sp.get("offset") ?? "0", 10) || 0);
   const category = sp.get("category") ?? undefined;
 
-  const { posts, total } = await listPublishedPosts(limit, offset, category);
+  // withTotal: the API is the one caller that paginates, so it needs the count.
+  const { posts, total } = await listPublishedPosts(limit, offset, category, true);
   return Response.json({ posts, total });
 }
 

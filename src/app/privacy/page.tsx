@@ -1,15 +1,17 @@
 import type { Metadata } from "next";
 import PageShell from "@/components/PageShell";
+import { pageOpenGraph } from "@/lib/config";
 
 export const metadata: Metadata = {
   title: "Privacy Policy",
   description: "How we collect, use, and protect your information.",
   alternates: { canonical: "/privacy" },
+  openGraph: pageOpenGraph("/privacy"),
 };
 
 export default function PrivacyPage() {
   return (
-    <PageShell title="Privacy Policy" eyebrow="Legal" width="prose">
+    <PageShell path="/privacy" title="Privacy Policy" eyebrow="Legal" width="prose">
       <div className="prose-page mt-8">
         <p>
           <strong>Last updated: {new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}</strong>

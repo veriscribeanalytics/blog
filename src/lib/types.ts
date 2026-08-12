@@ -23,6 +23,8 @@ export type Category = {
 };
 
 export type Product = {
+  /** DB row id — builds the `/go/<id>` click-tracking href. */
+  id: number;
   rank: string; // display: "#1"
   badge: string;
   name: string;
@@ -32,7 +34,7 @@ export type Product = {
   mrp: string; // display: "₹4,990"
   discount: string; // display: "50% OFF"
   image: string;
-  amazonUrl: string; // the affiliate link — already carries ?tag=affiliblog-21
+  amazonUrl: string; // the affiliate link — schema.ts requires a ?tag= on write
   pros: string[];
   why: string;
   updated: string; // display: "Updated 2 hours ago"
@@ -64,6 +66,12 @@ export type PostDetail = {
   authorName: string;
   authorAvatar: string;
   publishedAt: string; // ISO
+  /**
+   * ISO timestamp of the last edit, or "" when the row has never been updated.
+   * Distinct from `publishedAt` so `Article.dateModified` and `og:modified_time`
+   * can report real freshness — "best X in 2026" content is ranked on it.
+   */
+  updatedAt: string;
   date: string; // display
   readTime: string; // display
   readTimeMinutes: number;

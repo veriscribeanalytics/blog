@@ -20,6 +20,40 @@ export const faqSchema = z.object({
   a: z.string().min(1),
 });
 
+/**
+ * An affiliate link with no associate tag earns nothing, and `upsertProduct`
+ * deliberately never rewrites `amazon_url` — so one untagged write is permanently
+ * unpaid revenue with no error anywhere. Validate it at the door instead.
+ *
+ * The expected tag comes from AMAZON_AFFILIATE_TAG (read per-call so a rotated
+ * value applies without a rebuild). When it is unset we still require *some*
+ * `tag=`, because "no tag at all" is the failure worth catching either way.
+ */
+function assertAffiliateTag(raw: string, ctx: z.RefinementCtx): void {
+  let url: URL;
+  try {
+    url = new URL(raw);
+  } catch {
+    return; // .url() already reported the malformed-URL error
+  }
+  const tag = url.searchParams.get("tag");
+  if (!tag) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message:
+        "amazonUrl must carry an affiliate tag — append ?tag=<associate-id> or the link earns no commission",
+    });
+    return;
+  }
+  const expected = process.env.AMAZON_AFFILIATE_TAG;
+  if (expected && tag !== expected) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: `amazonUrl carries tag "${tag}" but this site's associate id is "${expected}"`,
+    });
+  }
+}
+
 export const productWriteSchema = z.object({
   rank: z.number().int().positive(),
   badge: z.string(),
@@ -29,7 +63,7 @@ export const productWriteSchema = z.object({
   priceInr: z.number().int().nonnegative(),
   mrpInr: z.number().int().nonnegative(),
   imageUrl: z.string().url(),
-  amazonUrl: z.string().url(),
+  amazonUrl: z.string().url().superRefine(assertAffiliateTag),
   pros: z.array(z.string()),
   whyPicked: z.string(),
 });

@@ -1,15 +1,18 @@
 import type { Metadata } from "next";
 import PageShell from "@/components/PageShell";
+import { pageOpenGraph } from "@/lib/config";
 
 export const metadata: Metadata = {
   title: "Contact",
   description: "Get in touch with questions, corrections, or category suggestions.",
   alternates: { canonical: "/contact" },
+  openGraph: pageOpenGraph("/contact"),
 };
 
 export default function ContactPage() {
   return (
     <PageShell
+      path="/contact"
       title="Get in Touch"
       eyebrow="Contact"
       width="prose"

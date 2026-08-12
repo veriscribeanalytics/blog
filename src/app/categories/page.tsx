@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import PageShell from "@/components/PageShell";
-import { getCategories } from "@/lib/data";
+import { getCategories, pageOpenGraph } from "@/lib/data";
 
 export const revalidate = 60;
 
@@ -10,6 +10,7 @@ export const metadata: Metadata = {
   title: "All Categories",
   description: "Browse reviews and guides by category.",
   alternates: { canonical: "/categories" },
+  openGraph: pageOpenGraph("/categories"),
 };
 
 export default async function CategoriesPage() {
@@ -17,19 +18,21 @@ export default async function CategoriesPage() {
 
   return (
     <PageShell
+      path="/categories"
       title="All Categories"
       eyebrow="Browse"
       intro="Find reviews, guides, and deals organized by category."
     >
       <div className="mt-10 grid grid-cols-2 lg:grid-cols-3 gap-x-5 gap-y-10 lg:gap-x-8 lg:gap-y-14">
-        {categories.map((c) => (
+        {categories.map((c, i) => (
           <Link key={c.slug} href={`/category/${c.slug}`} className="group">
             <div className="relative aspect-[3/4] overflow-hidden">
               <Image
                 src={c.image}
                 alt={c.name}
                 fill
-                sizes="(max-width: 1024px) 50vw, 33vw"
+                priority={i === 0}
+                sizes="(max-width: 1024px) 50vw, 440px"
                 className="object-cover transition-transform duration-[900ms] ease-out group-hover:scale-[1.04]"
               />
               <div

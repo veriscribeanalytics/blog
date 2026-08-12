@@ -12,17 +12,23 @@ import { getCategorySitemapEntries, getPostSitemapEntries } from "@/lib/data";
 export const revalidate = 60;
 
 // Legal/utility pages are indexable but rarely change and carry little weight.
+//
+// `content: true` marks a listing whose freshness tracks the newest post — Google
+// ignores `priority`/`changeFrequency` entirely but does read `lastmod`, and these
+// are the highest-value URLs on the site, so leaving them with no `lastmod` at all
+// wasted the one field that counts.
 const STATIC_ROUTES: {
   path: string;
   priority: number;
   changeFrequency: MetadataRoute.Sitemap[number]["changeFrequency"];
+  content?: boolean;
 }[] = [
-  { path: "/", priority: 1, changeFrequency: "daily" },
-  { path: "/deals", priority: 0.9, changeFrequency: "daily" },
-  { path: "/reviews", priority: 0.9, changeFrequency: "daily" },
-  { path: "/guides", priority: 0.8, changeFrequency: "weekly" },
-  { path: "/blog", priority: 0.8, changeFrequency: "daily" },
-  { path: "/categories", priority: 0.6, changeFrequency: "weekly" },
+  { path: "/", priority: 1, changeFrequency: "daily", content: true },
+  { path: "/deals", priority: 0.9, changeFrequency: "daily", content: true },
+  { path: "/reviews", priority: 0.9, changeFrequency: "daily", content: true },
+  { path: "/guides", priority: 0.8, changeFrequency: "weekly", content: true },
+  { path: "/blog", priority: 0.8, changeFrequency: "daily", content: true },
+  { path: "/categories", priority: 0.6, changeFrequency: "weekly", content: true },
   { path: "/about", priority: 0.4, changeFrequency: "yearly" },
   { path: "/contact", priority: 0.4, changeFrequency: "yearly" },
   { path: "/editorial", priority: 0.3, changeFrequency: "yearly" },
@@ -38,11 +44,15 @@ function lastModified(iso: string | null): Date | undefined {
 }
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const staticEntries: MetadataRoute.Sitemap = STATIC_ROUTES.map((r) => ({
+  const staticEntry = (
+    r: (typeof STATIC_ROUTES)[number],
+    freshest?: Date,
+  ): MetadataRoute.Sitemap[number] => ({
     url: absoluteUrl(r.path),
+    lastModified: r.content ? freshest : undefined,
     changeFrequency: r.changeFrequency,
     priority: r.priority,
-  }));
+  });
 
   // A DB outage must not take the sitemap down with it — serving the static
   // routes beats returning a 500 that Search Console records as a fetch error.
@@ -55,11 +65,15 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ]);
   } catch (err) {
     console.error("[sitemap] DB read failed; serving static routes only", err);
-    return staticEntries;
+    return STATIC_ROUTES.map((r) => staticEntry(r));
   }
 
+  // listPostSitemapEntries already orders by COALESCE(updated_at, published_at)
+  // DESC, so the first row is the freshest content on the site.
+  const freshest = lastModified(posts[0]?.updatedAt ?? null);
+
   return [
-    ...staticEntries,
+    ...STATIC_ROUTES.map((r) => staticEntry(r, freshest)),
     ...categories.map((c) => ({
       url: absoluteUrl(`/category/${c.slug}`),
       lastModified: lastModified(c.updatedAt),

@@ -3,7 +3,8 @@ import Image from "next/image";
 import Link from "next/link";
 import PageShell from "@/components/PageShell";
 import StarRating from "@/components/StarRating";
-import { getDeals } from "@/lib/data";
+import { AFFILIATE_REL, affiliateHref } from "@/lib/affiliate";
+import { getDeals, pageOpenGraph } from "@/lib/data";
 
 export const revalidate = 60;
 
@@ -11,6 +12,7 @@ export const metadata: Metadata = {
   title: "Deals",
   description: "Products we recommend that are currently below their usual price.",
   alternates: { canonical: "/deals" },
+  openGraph: pageOpenGraph("/deals"),
 };
 
 export default async function DealsPage() {
@@ -18,6 +20,7 @@ export default async function DealsPage() {
 
   return (
     <PageShell
+      path="/deals"
       title="Current Deals"
       eyebrow="Save"
       intro="Products from our reviews that are currently selling below MRP — biggest discount first."
@@ -28,7 +31,7 @@ export default async function DealsPage() {
         </p>
       ) : (
         <div className="mt-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-10">
-          {deals.map((d) => (
+          {deals.map((d, i) => (
             <div
               key={d.amazonUrl}
               className="border border-line bg-paper flex flex-col"
@@ -38,7 +41,11 @@ export default async function DealsPage() {
                   src={d.image}
                   alt={d.name}
                   fill
-                  sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                  priority={i === 0}
+                  // 24 thumbnails in a 3-up grid: cap the srcset at the real
+                  // rendered width rather than emitting the full 3840w ladder
+                  // for each one.
+                  sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 440px"
                   className="object-cover"
                 />
                 {d.discount && (
@@ -73,9 +80,9 @@ export default async function DealsPage() {
                 )}
 
                 <a
-                  href={d.amazonUrl}
+                  href={affiliateHref(d, d.postSlug || undefined)}
                   target="_blank"
-                  rel="nofollow sponsored noopener"
+                  rel={AFFILIATE_REL}
                   className="mt-5 inline-flex items-center justify-center gap-2 bg-ink text-cream text-[13px] font-semibold px-6 py-2.5 hover:bg-olive transition-colors"
                 >
                   View on Amazon →

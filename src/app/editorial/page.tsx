@@ -1,15 +1,18 @@
 import type { Metadata } from "next";
 import PageShell from "@/components/PageShell";
+import { pageOpenGraph } from "@/lib/config";
 
 export const metadata: Metadata = {
   title: "Editorial Policy",
   description: "How we test, rank, and recommend the products we write about.",
   alternates: { canonical: "/editorial" },
+  openGraph: pageOpenGraph("/editorial"),
 };
 
 export default function EditorialPage() {
   return (
     <PageShell
+      path="/editorial"
       title="Editorial Policy"
       eyebrow="Legal"
       width="prose"

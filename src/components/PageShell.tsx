@@ -6,6 +6,7 @@ import Header from "@/components/Header";
 import Newsletter from "@/components/Newsletter";
 import { Swash } from "@/components/icons";
 import { getCategories } from "@/lib/data";
+import { breadcrumbJsonLd, jsonLdScript } from "@/lib/jsonld";
 
 /**
  * Chrome shared by every non-home page: announcement strip, header (which needs
@@ -20,6 +21,7 @@ export default async function PageShell({
   eyebrow,
   intro,
   breadcrumb,
+  path,
   width = "wide",
   children,
 }: {
@@ -28,13 +30,27 @@ export default async function PageShell({
   intro?: string;
   /** Trailing crumb label; "Home" is always prepended. */
   breadcrumb?: string;
+  /**
+   * Site-relative path of this page. Supplying it emits `BreadcrumbList` schema
+   * matching the visible trail; omit it and only the HTML trail renders.
+   */
+  path?: string;
   width?: "prose" | "wide";
   children?: ReactNode;
 }) {
   const categories = await getCategories();
+  const crumb = breadcrumb ?? title;
 
   return (
     <>
+      {path && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: jsonLdScript(breadcrumbJsonLd([{ name: crumb, path }])),
+          }}
+        />
+      )}
       <AnnouncementBar />
       <Header categories={categories} />
 
@@ -48,7 +64,7 @@ export default async function PageShell({
                 </Link>
               </li>
               <li aria-hidden>›</li>
-              <li className="text-body">{breadcrumb ?? title}</li>
+              <li className="text-body">{crumb}</li>
             </ol>
           </nav>
 

@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import type { Post, Product, TocEntry } from "@/lib/types";
+import { AFFILIATE_REL, affiliateHref } from "@/lib/affiliate";
 import { ArrowRight } from "./icons";
 import StarRating from "./StarRating";
 
@@ -12,10 +13,13 @@ export default function PostSidebar({
   products,
   relatedArticles,
   tableOfContents,
+  postSlug,
 }: {
   products: Product[];
   relatedArticles: Post[];
   tableOfContents: TocEntry[];
+  /** Referring post, so deal-card clicks are attributable. */
+  postSlug?: string;
 }) {
   const [active, setActive] = useState(
     tableOfContents[0]?.id ?? "",
@@ -92,9 +96,9 @@ export default function PostSidebar({
             <span className="text-[13px] line-through text-muted">{deal.mrp}</span>
           </div>
           <a
-            href={deal.amazonUrl}
+            href={affiliateHref(deal, postSlug)}
             target="_blank"
-            rel="nofollow sponsored noopener"
+            rel={AFFILIATE_REL}
             className="mt-4 flex items-center justify-center gap-2 bg-ink text-cream text-[13px] font-medium py-2.5 hover:bg-bronze-deep transition-colors"
           >
             View on Amazon <ArrowRight size={13} />

@@ -1,15 +1,17 @@
 import type { Metadata } from "next";
 import PageShell from "@/components/PageShell";
+import { pageOpenGraph } from "@/lib/config";
 
 export const metadata: Metadata = {
   title: "Terms of Use",
   description: "The terms that govern your use of this website.",
   alternates: { canonical: "/terms" },
+  openGraph: pageOpenGraph("/terms"),
 };
 
 export default function TermsPage() {
   return (
-    <PageShell title="Terms of Use" eyebrow="Legal" width="prose">
+    <PageShell path="/terms" title="Terms of Use" eyebrow="Legal" width="prose">
       <div className="prose-page mt-8">
         <p>
           <strong>Last updated: {new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}</strong>

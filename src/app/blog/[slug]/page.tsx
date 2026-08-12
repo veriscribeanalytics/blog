@@ -8,9 +8,16 @@ import Header from "@/components/Header";
 import Newsletter from "@/components/Newsletter";
 import PostSidebar from "@/components/PostSidebar";
 import ProductCard from "@/components/ProductCard";
+import StickyBuyBar from "@/components/StickyBuyBar";
+import TopPickCard from "@/components/TopPickCard";
 import TrustStrip from "@/components/TrustStrip";
 import { ChevronRight, Swash } from "@/components/icons";
-import { getCategories, getPostBySlug } from "@/lib/data";
+import {
+  getCategories,
+  getPostBySlug,
+  getPostSitemapEntries,
+  ogImage,
+} from "@/lib/data";
 import { jsonLdScript, postJsonLd } from "@/lib/jsonld";
 
 export const revalidate = 60;
@@ -25,9 +32,21 @@ export async function generateMetadata({
   const { slug } = await params;
   const post = await getPostBySlug(slug);
   if (!post) {
-    return { title: "Not found", robots: { index: false, follow: false } };
+    return {
+      title: "Not found",
+      robots: { index: false, follow: false },
+      // Without this the root layout's `canonical: "/"` is inherited, which
+      // would point a missing post at the homepage.
+      alternates: { canonical: `/blog/${slug}` },
+    };
   }
   const url = `/blog/${post.slug}`;
+  // Same clamp as Article.dateModified in jsonld.ts: never report an edit that
+  // precedes publication.
+  const modified =
+    post.updatedAt && new Date(post.updatedAt) > new Date(post.publishedAt)
+      ? post.updatedAt
+      : post.publishedAt;
   return {
     title: post.title,
     description: post.excerpt,
@@ -38,17 +57,33 @@ export async function generateMetadata({
       description: post.excerpt,
       url,
       publishedTime: post.publishedAt || undefined,
+      modifiedTime: modified || undefined,
       authors: post.authorName ? [post.authorName] : undefined,
       section: post.category || undefined,
-      images: post.heroImage ? [{ url: post.heroImage, alt: post.title }] : undefined,
+      // Hero art is a hotlinked Unsplash URL; fall back to the generated site
+      // card so a share never ends up with no image.
+      images: post.heroImage
+        ? [{ url: post.heroImage, alt: post.title }]
+        : [ogImage],
     },
     twitter: {
       card: "summary_large_image",
       title: post.title,
       description: post.excerpt,
-      images: post.heroImage ? [post.heroImage] : undefined,
+      images: post.heroImage ? [post.heroImage] : [ogImage.url],
     },
   };
+}
+
+/**
+ * Prerender every published post at build time. Without this each post is a cold
+ * render on first request after every revalidate window, paying for the post
+ * query, its products, its related posts and the category list on the critical
+ * path.
+ */
+export async function generateStaticParams(): Promise<Params[]> {
+  const entries = await getPostSitemapEntries();
+  return entries.map((e) => ({ slug: e.slug }));
 }
 
 export default async function BlogPost({
@@ -63,6 +98,9 @@ export default async function BlogPost({
   ]);
   if (!post) notFound();
 
+  // Highest-ranked product drives the above-fold card and the mobile buy bar.
+  const topPick = post.products[0];
+
   return (
     <>
       <script
@@ -72,7 +110,8 @@ export default async function BlogPost({
       <AnnouncementBar />
       <Header categories={categories} />
 
-      <main className="flex-1">
+      {/* pb-24 reserves room for the mobile buy bar so it can't cover content */}
+      <main className={`flex-1 ${topPick ? "pb-24 lg:pb-0" : ""}`}>
         {/* ── post hero ───────────────────────────────────────────── */}
         <div className="bg-paper border-b border-line">
           <div className="mx-auto max-w-[1400px] px-5 lg:px-8 pt-6 pb-8 lg:pb-10">
@@ -139,6 +178,9 @@ export default async function BlogPost({
                     {post.date} &nbsp;·&nbsp; {post.readTime}
                   </span>
                 </div>
+
+                {/* Top pick + jump link, so the answer is above the fold. */}
+                {topPick && <TopPickCard p={topPick} postSlug={post.slug} />}
               </div>
 
               {/* right: hero image */}
@@ -245,7 +287,7 @@ export default async function BlogPost({
                   <Swash className="w-32 h-2.5 text-bronze opacity-50" />
                   <div className="mt-6 space-y-6">
                     {post.products.map((p) => (
-                      <ProductCard key={p.rank} p={p} />
+                      <ProductCard key={p.rank} p={p} postSlug={post.slug} />
                     ))}
                   </div>
                 </section>
@@ -322,12 +364,15 @@ export default async function BlogPost({
               products={post.products}
               relatedArticles={post.relatedArticles}
               tableOfContents={post.tableOfContents}
+              postSlug={post.slug}
             />
           </div>
         </div>
 
         <Newsletter />
       </main>
+
+      {topPick && <StickyBuyBar p={topPick} postSlug={post.slug} />}
 
       <Footer />
     </>

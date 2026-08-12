@@ -17,6 +17,7 @@
  */
 
 import sanitizeHtml from "sanitize-html";
+import { siteUrl } from "@/lib/config";
 
 const OPTIONS: sanitizeHtml.IOptions = {
   allowedTags: [
@@ -30,6 +31,10 @@ const OPTIONS: sanitizeHtml.IOptions = {
     "a", "img",
     "table", "thead", "tbody", "tfoot", "tr", "th", "td", "caption",
     "code", "pre", "span", "div",
+    // `section` carries the ids the TOC scroll-spy anchors to. Without it
+    // sanitize-html keeps the children but drops the wrapper *and its id*,
+    // leaving every TOC link a dead anchor.
+    "section",
   ],
   allowedAttributes: {
     // `id` on headings is what the TOC scroll-spy anchors to — keep it.
@@ -45,20 +50,52 @@ const OPTIONS: sanitizeHtml.IOptions = {
   // Strip <script>/<style> contents entirely rather than leaving inner text.
   nonTextTags: ["script", "style", "textarea", "option", "noscript"],
   transformTags: {
-    // Body links are agent-supplied and may be affiliate links, so mark them
-    // all nofollow+sponsored and make external targets safe to open.
+    /**
+     * Outbound body links are agent-supplied and may be affiliate links, so they
+     * get nofollow+sponsored and external targets are made safe to open.
+     *
+     * Same-origin links are deliberately left alone. They are editorial
+     * cross-links, and the article body is the only contextual-linking surface
+     * on the site — marking them `nofollow sponsored` would block internal link
+     * equity and tell Google our own pages are paid placements.
+     */
     a: (tagName, attribs) => {
       const rel = new Set((attribs.rel ?? "").split(/\s+/).filter(Boolean));
-      rel.add("nofollow");
-      rel.add("sponsored");
+      if (isOutbound(attribs.href)) {
+        rel.add("nofollow");
+        rel.add("sponsored");
+      }
       if (attribs.target === "_blank") {
         rel.add("noopener");
         rel.add("noreferrer");
       }
-      return { tagName, attribs: { ...attribs, rel: [...rel].join(" ") } };
+      const next = { ...attribs };
+      if (rel.size > 0) next.rel = [...rel].join(" ");
+      else delete next.rel;
+      return { tagName, attribs: next };
     },
   },
 };
+
+/**
+ * True for links that leave the site. Relative hrefs, fragments and same-origin
+ * absolutes are internal; anything with a different host is not.
+ *
+ * Note `siteUrl` is localhost in dev, so a hardcoded production absolute URL in
+ * a body counts as outbound there. That errs toward over-tagging, which is the
+ * safe direction.
+ */
+function isOutbound(href: string | undefined): boolean {
+  if (!href) return false;
+  if (/^(#|\/(?!\/))/.test(href)) return false; // "#faq", "/blog/x" — but not "//evil.com"
+  if (/^(mailto|tel):/i.test(href)) return false;
+  if (!/^[a-z][a-z0-9+.-]*:|^\/\//i.test(href)) return false; // bare "about" etc.
+  try {
+    return new URL(href, siteUrl).host !== new URL(siteUrl).host;
+  } catch {
+    return true;
+  }
+}
 
 /** Strip anything not on the allowlist. Safe for `dangerouslySetInnerHTML`. */
 export function sanitizePostBody(html: string): string {
