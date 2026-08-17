@@ -45,7 +45,7 @@ export default function AboutPage() {
         </p>
 
         <p>
-          That commission is what funds the testing and keeps the site free to read. It does not influence what we recommend. See our{" "}
+          That commission is what funds the research and keeps the site free to read. It does not influence what we recommend. See our{" "}
           <Link href="/disclosure">Affiliate Disclosure</Link> for specifics.
         </p>
 

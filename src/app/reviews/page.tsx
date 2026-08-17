@@ -7,7 +7,7 @@ export const revalidate = 60;
 
 export const metadata: Metadata = {
   title: "Reviews",
-  description: "Hands-on product reviews with ranked picks for every budget.",
+  description: "Researched product reviews with ranked picks for every budget.",
   alternates: { canonical: "/reviews" },
   openGraph: pageOpenGraph("/reviews"),
 };
@@ -19,8 +19,8 @@ export default async function ReviewsPage() {
     <PageShell
       path="/reviews"
       title="Reviews"
-      eyebrow="Tested"
-      intro="Hands-on reviews with ranked picks — every article here compares real products against each other."
+      eyebrow="Researched"
+      intro="Ranked picks with the reasoning shown — every article here compares real products against each other."
     >
       <PostGrid
         posts={posts}

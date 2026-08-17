@@ -52,9 +52,20 @@ export default function PrivacyPage() {
         </p>
         <ul>
           <li><strong>Analytics providers</strong> to understand how visitors use our site</li>
+          <li><strong>Advertising partners</strong> to select and serve the ads you see</li>
           <li><strong>Email service providers</strong> to deliver our newsletter</li>
           <li><strong>Hosting providers</strong> to store and serve our content</li>
         </ul>
+
+        <h2>Advertising</h2>
+        <p>
+          We display advertising served by Google. Google, as a third-party vendor, uses cookies &mdash; including the DoubleClick DART cookie &mdash; to serve ads based on your prior visits to this and other websites. Google&rsquo;s use of advertising cookies enables it and its partners to serve ads to you based on your visit to our site and other sites on the internet.
+        </p>
+        <p>
+          You can opt out of personalised advertising in{" "}
+          <a href="https://www.google.com/settings/ads" rel="nofollow noopener" target="_blank">Google Ads Settings</a>, or opt out of third-party vendor cookies through{" "}
+          <a href="https://www.aboutads.info/choices/" rel="nofollow noopener" target="_blank">aboutads.info</a>. Declining these cookies does not prevent you from using the site; you will simply see less relevant ads.
+        </p>
 
         <h2>Affiliate Links and Amazon Associates</h2>
         <p>

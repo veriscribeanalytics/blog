@@ -1,0 +1,11 @@
+# Authorized digital sellers — https://iabtechlab.com/ads-txt/
+# Served at /ads.txt from public/. Google re-crawls it on its own schedule;
+# without a correct line here AdSense treats this site's inventory as
+# unauthorized and demand (i.e. earnings) drops.
+#
+# The id below is deliberately NOT the `ca-pub-…` form used by the loader
+# script in layout.tsx — the ads.txt spec wants the bare `pub-…` id. Mismatching
+# the two is the usual reason a file that looks right still reports as missing.
+# `f08c47fec0942fa0` is Google's TAG certification authority id, identical for
+# every AdSense publisher.
+google.com, pub-1773742947612254, DIRECT, f08c47fec0942fa0

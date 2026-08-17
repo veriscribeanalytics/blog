@@ -46,8 +46,11 @@ Still outstanding before launch:
 - **OG card is off-face** — `src/app/opengraph-image.tsx` generates a real 1200×630
   card from the design tokens, but `next/og` ships no serif so the headline is its
   default sans, not Playfair. Needs a font file in-repo to fix properly.
-- **Thin content** — 5 published posts across 1 category, so `/categories` and the
-  category listing are near-empty. Empty categories emit `noindex`.
+- **Thin content** — 9 published posts across 2 categories (electronics 7, home 2),
+  6 of them product roundups and 3 explainer guides. Still light, so `/categories`
+  and the category listings are sparse. Empty categories emit `noindex`.
+  `/guides` vs `/reviews` is derived, not a flag: a post with no attached products
+  is a guide, one with products is a review (`listPostsByKind` in `queries.ts`).
 - **Newsletter** stores to `newsletter_subscribers` only; the Resend forward is
   stubbed pending `RESEND_API_KEY`.
 - **`npm audit`** reports 4 high-severity advisories in Next's own dependency
@@ -101,6 +104,24 @@ The whole site earns through these, so the invariants are enforced, not document
   `amazon_url`, so one untagged write would be permanently unpaid.
 - `/go/` is disallowed in `robots.ts` — it redirects off-site, so crawling it wastes
   budget and pollutes the click log.
+
+## Ads (AdSense)
+
+Secondary to affiliate revenue — treat it that way when the two conflict.
+
+- The loader lives in `layout.tsx`, gated on `adsEnabled` from `config.ts`. That
+  gate requires `NODE_ENV === "production"` **and** a configured non-localhost
+  origin. The `NODE_ENV` half is not redundant: `.env.local` points
+  `NEXT_PUBLIC_SITE_URL` at the live domain, so without it every `npm run dev`
+  page view fetches live ads and counts as invalid traffic.
+- The publisher id appears in two formats and they are not interchangeable:
+  `ca-pub-…` for the loader (`config.ts`), bare `pub-…` for `public/ads.txt`.
+- `robots.ts` serving `Disallow: /` (the unset-`NEXT_PUBLIC_SITE_URL` path) also
+  blocks Google's ad crawler — that failure mode breaks ads as well as SEO.
+- No ad units are placed yet. When adding them, reserve each slot's height so it
+  cannot shift content (CLS is a ranking factor, and rankings are the traffic),
+  and keep them clear of `ProductCard` / `TopPickCard` / `StickyBuyBar` — an ad
+  click next to a buy button trades a commission for a fraction of a cent.
 
 ## Security
 
