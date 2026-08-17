@@ -56,6 +56,29 @@ export function absoluteUrl(path = "/"): string {
 }
 
 /**
+ * Google AdSense publisher id, in the `ca-pub-…` form the loader script wants.
+ *
+ * `public/ads.txt` carries the same account as a bare `pub-…` id — that's what
+ * the ads.txt spec expects. Keep the two in sync when the account changes.
+ */
+export const adsensePublisherId = "ca-pub-1773742947612254";
+
+/**
+ * Whether to load the third-party ad script.
+ *
+ * Requires a real production build *and* a configured non-localhost origin.
+ *
+ * The `NODE_ENV` half is load-bearing and not redundant: `.env.local` sets
+ * NEXT_PUBLIC_SITE_URL to the live domain, so the origin checks alone are true
+ * under `npm run dev` and every local page view would fetch live ads and count
+ * toward the invalid-traffic signals that get AdSense accounts suspended.
+ */
+export const adsEnabled =
+  process.env.NODE_ENV === "production" &&
+  Boolean(process.env.NEXT_PUBLIC_SITE_URL) &&
+  !siteUrl.includes("localhost");
+
+/**
  * The generated social card at `src/app/opengraph-image.tsx`.
  *
  * File-based `opengraph-image` only applies to the segment it sits in — it is NOT
@@ -86,9 +109,17 @@ export const navLinks = [
 /** Thin strip pinned above the header on every page. */
 export const announcement = "Curated Buying Guides for Smarter Choices";
 
-/** Four-up credibility row that sits directly under the post hero. */
+/**
+ * Four-up credibility row that sits directly under the post hero.
+ *
+ * These are public claims about method, so they have to stay true. Recommendations
+ * are built from published specs, expert reviews, and verified-owner feedback —
+ * not from hands-on lab testing. Don't reintroduce "tested"/"hands-on" wording
+ * here unless the testing it asserts actually happens; `/editorial` states the
+ * methodology plainly and these labels must not contradict it.
+ */
 export const trustPoints: TrustPoint[] = [
-  { icon: "headphones", label: "Hands-on, real-world tested" },
+  { icon: "headphones", label: "Independently researched" },
   { icon: "zap", label: "Honest verdicts, no hype" },
   { icon: "shield", label: "Best picks for every budget" },
   { icon: "tag", label: "Always kept up to date" },
@@ -101,6 +132,6 @@ export const newsletterTagline = "Smarter. Buying. Better. Life.";
 export const manifesto = {
   eyebrow: "Our Promise",
   statement:
-    "We only recommend what we would buy ourselves — tested, lived with, and judged honestly.",
-  accent: "tested, lived with, and judged honestly",
+    "We only recommend what we would buy ourselves — researched, cross-checked, and judged honestly.",
+  accent: "researched, cross-checked, and judged honestly",
 };

@@ -86,7 +86,7 @@ export default function OpengraphImage() {
             letterSpacing: "0.02em",
           }}
         >
-          Tested, lived with, and judged honestly.
+          Researched, cross-checked, and judged honestly.
         </div>
       </div>
     ),

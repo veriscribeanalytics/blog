@@ -1,6 +1,14 @@
 import type { Metadata } from "next";
 import { Dancing_Script, Inter, Playfair_Display } from "next/font/google";
-import { absoluteUrl, ogImage, siteName, siteUrl } from "@/lib/config";
+import Script from "next/script";
+import {
+  absoluteUrl,
+  adsEnabled,
+  adsensePublisherId,
+  ogImage,
+  siteName,
+  siteUrl,
+} from "@/lib/config";
 import "./globals.css";
 
 const inter = Inter({
@@ -118,6 +126,27 @@ export default function RootLayout({
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(orgLd) }}
         />
+        {/*
+          AdSense loader. `afterInteractive` (the default), not
+          `beforeInteractive`: the docs reserve that for genuinely critical
+          scripts like bot detectors and consent managers, and fetching an ad
+          script ahead of first-party code would trade LCP — a ranking factor on
+          a site whose revenue depends on organic search — for nothing.
+
+          No ad units are placed yet; this only registers the site with the
+          account. When units are added, give each a reserved height so it
+          cannot shift content in, and keep them away from the buy controls
+          (ProductCard / TopPickCard / StickyBuyBar) — an ad click there is a
+          reader who left instead of converting on a commission.
+        */}
+        {adsEnabled && (
+          <Script
+            id="adsbygoogle-loader"
+            src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${adsensePublisherId}`}
+            strategy="afterInteractive"
+            crossOrigin="anonymous"
+          />
+        )}
         {children}
       </body>
     </html>

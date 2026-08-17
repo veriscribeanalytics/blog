@@ -4,7 +4,7 @@ import { pageOpenGraph } from "@/lib/config";
 
 export const metadata: Metadata = {
   title: "Editorial Policy",
-  description: "How we test, rank, and recommend the products we write about.",
+  description: "How we research, rank, and recommend the products we write about.",
   alternates: { canonical: "/editorial" },
   openGraph: pageOpenGraph("/editorial"),
 };
@@ -28,17 +28,24 @@ export default function EditorialPage() {
           We only recommend what we would buy ourselves. Every ranking on this site reflects our genuine assessment of which product serves the reader best — not which one pays the highest commission.
         </p>
 
-        <h2>How We Evaluate Products</h2>
+        <h2>How We Research Products</h2>
         <p>
-          Each product we cover is assessed against a consistent set of criteria:
+          We want to be straightforward about our method, because &ldquo;we tested it&rdquo; means something specific and we would rather not blur it: <strong>we do not run a hands-on testing lab.</strong> We do not buy every product we write about, and we do not claim measurements we did not take.
+        </p>
+        <p>
+          What we do instead is research each category thoroughly and show our reasoning. Every product we cover is assessed against a consistent set of criteria:
         </p>
         <ul>
-          <li><strong>Real-world performance</strong> — how it behaves in everyday use, not just on a spec sheet</li>
-          <li><strong>Build quality</strong> — materials, construction, and how well it holds up over time</li>
-          <li><strong>Value for money</strong> — what you get relative to what you pay, at every budget</li>
-          <li><strong>Verified owner feedback</strong> — patterns across a large sample of real purchaser reviews</li>
+          <li><strong>Published specifications</strong> — compared across the category on the terms that actually matter for the buyer, not the ones the marketing leads with</li>
+          <li><strong>Real-world performance</strong> — drawn from independent expert reviews and the pattern of verified-owner reports, rather than our own bench numbers</li>
+          <li><strong>Build quality</strong> — materials and construction, plus what long-term owners say about how it holds up</li>
+          <li><strong>Value for money</strong> — what you get relative to what you pay, at every budget, against current street prices</li>
+          <li><strong>Verified owner feedback</strong> — patterns across a large sample of real purchaser reviews, weighted toward recurring complaints over one-off praise</li>
           <li><strong>Support and warranty</strong> — what happens when something goes wrong</li>
         </ul>
+        <p>
+          Where a claim comes from a source rather than from us, we attribute it. Where the evidence is thin or conflicting, we say that too — a guide that admits uncertainty is more useful than one that invents confidence.
+        </p>
 
         <h2>How We Rank</h2>
         <p>

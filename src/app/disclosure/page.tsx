@@ -33,7 +33,7 @@ export default function DisclosurePage() {
 
         <h2>Our Editorial Independence</h2>
         <p>
-          Our reviews, rankings, and recommendations are based on hands-on testing, research, and editorial judgment. Affiliate relationships do not influence our evaluations or rankings.
+          Our reviews, rankings, and recommendations are based on published specifications, expert and verified-owner reviews, current pricing, and editorial judgment. Affiliate relationships do not influence our evaluations or rankings. See our <a href="/editorial">Editorial Policy</a> for exactly how we assess products.
         </p>
 
         <p>
@@ -45,7 +45,7 @@ export default function DisclosurePage() {
           We focus on products across categories including electronics, home goods, personal care, and more. Each product we review is evaluated against:
         </p>
         <ul>
-          <li>Real-world performance and usability</li>
+          <li>Real-world performance, as reported by verified owners</li>
           <li>Build quality and durability</li>
           <li>Value for money</li>
           <li>Customer feedback and ratings</li>
@@ -74,7 +74,7 @@ export default function DisclosurePage() {
           When you use our affiliate links, you help support our work at no extra cost to yourself. The commissions we earn allow us to:
         </p>
         <ul>
-          <li>Purchase products for hands-on testing</li>
+          <li>Spend the hours of research each guide takes</li>
           <li>Maintain and improve our website</li>
           <li>Create detailed, honest reviews and guides</li>
           <li>Keep our content free for readers</li>
