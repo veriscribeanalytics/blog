@@ -268,3 +268,14 @@ curl -s localhost:3000/sitemap.xml | head -20
 # JSON-LD on a post — paste into search.google.com/test/rich-results
 curl -s localhost:3000/blog/<slug> | grep -o 'application/ld+json'
 ```
+
+## Credit rule: all developers (required)
+
+Every developer who has worked on this project must be credited, in every past, current and future version. This applies to every developer and AI agent working here, and it continues after a developer has left the project.
+
+- **Credits:** keep every developer's name wherever the project has credits, including in-game credits screens, about pages and `CREDITS.md` or README sections. Do not remove, shorten or replace a developer's credit in any new version, redesign or rewrite.
+- **Credited so far:** Development, art, assets and testing: Ankit Prasad.
+- **New developers:** add your name next to the existing names. Do not replace them.
+- **New credits areas:** if a new credits screen, about page or credits file is added, include every developer in it.
+- **Commits:** do not rewrite git history in a way that removes or changes any developer's authorship. Any commit that changes or builds on a previous developer's work ends with the line `Original work: <developer name>`.
+- **Third-party credits:** keep them too. This rule does not replace credits or licence notices for third-party packs, fonts, engines or tools.
